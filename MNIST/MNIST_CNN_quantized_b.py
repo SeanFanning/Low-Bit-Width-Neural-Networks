@@ -15,9 +15,70 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 FLAGS = None
 
-quantization_bits = 4
-quantization_range = 1
+# Defaults
+w_b = 4
+b_b = 4
+a_b = 4
+min_q = -.5
+max_q = .5
 
+# Conv 1
+conv1_w_bits = 2
+conv1_w_min = -0.3
+conv1_w_max = 0.3
+conv1_b_bits = 2
+conv1_b_min = -0.3
+conv1_b_max = 0.3
+conv1_a_bits = 2
+conv1_a_min = -8
+conv1_a_max = 8
+
+# Conv 2
+conv2_w_bits = 2
+conv2_w_min = -0.3
+conv2_w_max = 0.3
+conv2_b_bits = 2
+conv2_b_min = -0.3
+conv2_b_max = 0.3
+conv2_a_bits = 2
+conv2_a_min = -8
+conv2_a_max = 8
+
+# Fully Connected 1
+fc1_depth = 500
+fc1_w_bits = 2
+fc1_w_min = -0.3
+fc1_w_max = 0.3
+fc1_b_bits = 2
+fc1_b_min = -0.3
+fc1_b_max = 0.3
+fc1_a_bits = 2
+fc1_a_min = -8
+fc1_a_max = 8
+
+# Fully Connected 2 (OUT)
+fc2_depth = 500
+fc2_w_bits = 2
+fc2_w_min = -0.3
+fc2_w_max = 0.3
+fc2_b_bits = 2
+fc2_b_min = -0.3
+fc2_b_max = 0.3
+fc2_a_bits = 2
+fc2_a_min = -8
+fc2_a_max = 8
+
+# Fully Connected 3
+fc3_depth = 500
+fc3_w_bits = 2
+fc3_w_min = -0.3
+fc3_w_max = 0.3
+fc3_b_bits = 2
+fc3_b_min = -0.3
+fc3_b_max = 0.3
+fc3_a_bits = 2
+fc3_a_min = -8
+fc3_a_max = 8
 
 
 def train():
@@ -62,7 +123,7 @@ def train():
       tf.summary.histogram('histogram', var)
 
   # TODO: Quantize tensor
-  def fake_quantize_tensor(input_tensor, min_val, max_val, name):
+  def fake_quantize_tensor(input_tensor, quantization_bits, min_val, max_val, name):
     # Hardcode the min and max for now
     # I think these cant be dynamic
     with tf.name_scope(name):
@@ -105,7 +166,7 @@ def train():
 
 
   # TODO: Create a fully connected layer with quantized variables
-  def fc_layer_quantized(input_tensor, input_dim, output_dim, layer_name, act=tf.nn.relu):
+  def fc_layer_quantized(input_tensor, input_dim, output_dim, bits_w, bits_b, bits_a, layer_name, act=tf.nn.relu):
     """Reusable code for making a simple neural net layer.
 
     It does a matrix multiply, bias add, and then uses ReLU to nonlinearize.
@@ -130,16 +191,16 @@ def train():
       with tf.name_scope('quantized_weights'):
         #quantized_weights = tf.fake_quant_with_min_max_args(weights, -quantization_range/2, quantization_range/2, quantization_bits, narrow_range=False, name='quantized_weights')
         #variable_summaries(quantized_weights)
-        quantized_weights = fake_quantize_tensor(weights, -0.25, 0.25, name="quantized_weights")
+        quantized_weights = fake_quantize_tensor(weights, bits_w, fc1_w_min, fc1_w_max, name="quantized_weights")
       with tf.name_scope('quantized_biases'):
         #quantized_biases = tf.fake_quant_with_min_max_args(biases, -quantization_range/2, quantization_range/2, quantization_bits, narrow_range=False, name='quantized_weights')
         #variable_summaries(quantized_biases)
-        quantized_biases = fake_quantize_tensor(biases, -0.25, 0.25, name="quantized_biases") # TODO: Biases seem to need higher bitwidths, also they train weirdly
+        quantized_biases = fake_quantize_tensor(biases, bits_b, fc1_b_min, fc1_b_max, name="quantized_biases") # TODO: Biases seem to need higher bitwidths, also they train weirdly
         # quantized_biases = biases
       with tf.name_scope('quantized_Wx_plus_b'):
         preactivate_q = tf.matmul(input_tensor, quantized_weights) + quantized_biases
         #quantized_preactivate = tf.fake_quant_with_min_max_args(preactivate_q, -quantization_range/2, quantization_range/2, quantization_bits, narrow_range=False, name='quantized_weights')
-        quantized_preactivate = fake_quantize_tensor(preactivate_q, -8, 8, name="quantized_preactivate")
+        quantized_preactivate = fake_quantize_tensor(preactivate_q, bits_a, -8, 8, name="quantized_preactivate")
         variable_summaries(quantized_preactivate)
         tf.summary.histogram('quantized_pre_activations', quantized_preactivate)
 
@@ -206,9 +267,9 @@ def train():
 
       # Quantization
       with tf.name_scope('quantized_weights'):
-        quantized_weights = fake_quantize_tensor(weights, -0.25, 0.25, name="quantized_weights")
+        quantized_weights = fake_quantize_tensor(weights, fc1_w_bits, fc1_w_min, fc1_w_max, name="quantized_weights")
       with tf.name_scope('quantized_biases'):
-        quantized_biases = fake_quantize_tensor(biases, -0.25, 0.25, name="quantized_biases")
+        quantized_biases = fake_quantize_tensor(biases, fc1_b_bits, fc1_b_min, fc1_b_max, name="quantized_biases")
 
       with tf.name_scope('out_layer'):
         # setup the convolutional layer operation
@@ -241,7 +302,7 @@ def train():
 
   # with tf.name_scope('FullyConnectedLayers'):
   # Layer 1 784x250
-  hidden1 = fc_layer_quantized(x_flattened, 7 * 7 * 64, 250, 'fully_connected1')
+  hidden1 = fc_layer_quantized(x_flattened, 7 * 7 * 64, 250, fc1_w_bits, fc1_b_bits, fc1_a_bits, 'fully_connected1')
 
   with tf.name_scope('dropout'):
     keep_prob = tf.placeholder(tf.float32)
@@ -347,8 +408,11 @@ def train():
 
 def main(_):
   if tf.gfile.Exists(FLAGS.log_dir):
+    print("Deleting existing dir: ", FLAGS.log_dir)
     tf.gfile.DeleteRecursively(FLAGS.log_dir)
   tf.gfile.MakeDirs(FLAGS.log_dir)
+
+
   train()
 
 
