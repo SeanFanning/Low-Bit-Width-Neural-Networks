@@ -183,6 +183,9 @@ def train():
         # biases = bias_variable([output_dim])
         biases = weight_variable([output_dim])
         variable_summaries(biases)
+      with tf.name_scope('additive_noise'): # Add some noise to move some nodes into activation if they are close
+        noise = tf.truncated_normal(output_dim, stddev=0.05)
+        variable_summaries(noise)
 
       # if(variables_initialized == False):
       #   tf.global_variables_initializer().run()
@@ -198,7 +201,7 @@ def train():
         quantized_biases = fake_quantize_tensor(biases, bits_b, -max_b, max_b, name="quantized_biases") # TODO: Biases seem to need higher bitwidths, also they train weirdly
         # quantized_biases = biases
       with tf.name_scope('quantized_Wx_plus_b'):
-        preactivate_q = tf.matmul(input_tensor, quantized_weights) + quantized_biases
+        preactivate_q = tf.matmul(input_tensor, quantized_weights) + quantized_biases + noise
         #quantized_preactivate = tf.fake_quant_with_min_max_args(preactivate_q, -quantization_range/2, quantization_range/2, quantization_bits, narrow_range=False, name='quantized_weights')
         quantized_preactivate = fake_quantize_tensor(preactivate_q, bits_a, -max_a, max_a, name="quantized_preactivate")
         variable_summaries(quantized_preactivate)
