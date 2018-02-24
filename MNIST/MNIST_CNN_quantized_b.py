@@ -22,6 +22,9 @@ a_b = 4
 min_q = -.5
 max_q = .5
 
+# Noise
+noise_stddev = 0.05
+
 # Conv 1
 conv1_w_bits = 4
 conv1_w_min = -0.3
@@ -184,7 +187,7 @@ def train():
         biases = weight_variable([output_dim])
         variable_summaries(biases)
       with tf.name_scope('additive_noise'): # Add some noise to move some nodes into activation if they are close
-        noise = tf.truncated_normal(output_dim, stddev=0.05)
+        noise = tf.truncated_normal([output_dim], noise_stddev)
         variable_summaries(noise)
 
       # if(variables_initialized == False):
@@ -205,10 +208,11 @@ def train():
         #quantized_preactivate = tf.fake_quant_with_min_max_args(preactivate_q, -quantization_range/2, quantization_range/2, quantization_bits, narrow_range=False, name='quantized_weights')
         quantized_preactivate = fake_quantize_tensor(preactivate_q, bits_a, -max_a, max_a, name="quantized_preactivate")
         variable_summaries(quantized_preactivate)
-        tf.summary.histogram('quantized_pre_activations', quantized_preactivate)
+        #tf.summary.histogram('quantized_pre_activations', quantized_preactivate)
 
       quantized_activations = act(quantized_preactivate, name='quantized_activation')
-      tf.summary.histogram('quantized activations', quantized_activations)
+      # tf.summary.histogram('quantized activations', quantized_activations)
+      variable_summaries(quantized_activations)
       return quantized_activations
 
 
@@ -441,8 +445,8 @@ if __name__ == '__main__':
   parser.add_argument(
       '--log_dir',
       type=str,
-      default=os.path.join(os.getenv('TEST_TMPDIR', '/tmp'),
-                           'tensorflow/mnist_with_summaries/logs/mnist_with_summaries'),
+      # default=os.path.join(os.getenv('TEST_TMPDIR', '/tmp'), 'tensorflow/mnist_with_summaries/logs/mnist_with_summaries'),
+      default = 'logs/mnist_with_summaries',
       help='Summaries log directory')
   FLAGS, unparsed = parser.parse_known_args()
   tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
