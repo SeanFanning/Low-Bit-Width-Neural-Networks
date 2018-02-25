@@ -1,3 +1,4 @@
 .idea/*
-MNIST/logs/*
+Testing/logs/*
+logs/*
 *.pyc
