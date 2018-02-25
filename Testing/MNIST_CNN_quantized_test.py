@@ -15,8 +15,9 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 FLAGS = None
 
-# Noise
-enable_additive_noise = True
+max_steps = 5000
+num_layers = 3  # Set the number of Fully Connected Layers
+
 noise_stddev = 0.05
 
 # Conv 1
@@ -66,14 +67,14 @@ fc2_a_min = -8
 fc2_a_max = 8
 
 # Fully Connected 3
-fc3_depth = 500
-fc3_w_bits = 2
+fc3_depth = 250
+fc3_w_bits = 4
 fc3_w_min = -0.3
 fc3_w_max = 0.3
-fc3_b_bits = 2
+fc3_b_bits = 4
 fc3_b_min = -0.3
 fc3_b_max = 0.3
-fc3_a_bits = 2
+fc3_a_bits = 4
 fc3_a_min = -8
 fc3_a_max = 8
 
@@ -180,9 +181,6 @@ def train():
         # biases = bias_variable([output_dim])
         biases = weight_variable([output_dim])
         variable_summaries(biases)
-      with tf.name_scope('additive_noise'): # Add some noise to move some nodes into activation if they are close
-        noise = tf.random_normal([output_dim], mean=0.0, stddev=noise_stddev)
-        variable_summaries(noise)
 
       # if(variables_initialized == False):
       #   tf.global_variables_initializer().run()
@@ -198,13 +196,58 @@ def train():
         quantized_biases = fake_quantize_tensor(biases, bits_b, -max_b, max_b, name="quantized_biases") # TODO: Biases seem to need higher bitwidths, also they train weirdly
         # quantized_biases = biases
       with tf.name_scope('quantized_Wx_plus_b'):
+        preactivate_q = tf.matmul(input_tensor, quantized_weights) + quantized_biases
+        #quantized_preactivate = tf.fake_quant_with_min_max_args(preactivate_q, -quantization_range/2, quantization_range/2, quantization_bits, narrow_range=False, name='quantized_weights')
+        quantized_preactivate = fake_quantize_tensor(preactivate_q, bits_a, -max_a, max_a, name="quantized_preactivate")
+        variable_summaries(quantized_preactivate)
+        #tf.summary.histogram('quantized_pre_activations', quantized_preactivate)
+
+      quantized_activations = act(quantized_preactivate, name='quantized_activation') # Relu by default
+      # tf.summary.histogram('quantized activations', quantized_activations)
+      variable_summaries(quantized_activations)
+      return quantized_activations
+
+
+  # TODO: Create a fully connected layer with quantized variables, adding random noise
+  def fc_layer_quantized_add_noise(input_tensor, input_dim, output_dim, bits_w, max_w, bits_b, max_b, bits_a, max_a, layer_name, act=tf.nn.relu):
+    """Reusable code for making a simple neural net layer.
+
+    It does a matrix multiply, bias add, and then uses ReLU to nonlinearize.
+    It also sets up name scoping so that the resultant graph is easy to read,
+    and adds a number of summary ops.
+    """
+    # Adding a name scope ensures logical grouping of the layers in the graph.
+    with tf.name_scope(layer_name):
+      # This Variable will hold the state of the weights for the layer
+      with tf.name_scope('weights'):
+        weights = weight_variable([input_dim, output_dim])
+        variable_summaries(weights)
+      with tf.name_scope('biases'):
+        # biases = bias_variable([output_dim])
+        biases = weight_variable([output_dim])
+        variable_summaries(biases)
+      with tf.name_scope('additive_noise'): # Add some noise to move some nodes into activation if they are close
+        noise = tf.random_normal([output_dim], mean=0.0, stddev=noise_stddev)
+        variable_summaries(noise)
+
+      with tf.name_scope('quantized_weights'):
+        #quantized_weights = tf.fake_quant_with_min_max_args(weights, -quantization_range/2, quantization_range/2, quantization_bits, narrow_range=False, name='quantized_weights')
+        #variable_summaries(quantized_weights)
+        quantized_weights = fake_quantize_tensor(weights, bits_w, -max_w, max_w, name="quantized_weights")
+      with tf.name_scope('quantized_biases'):
+        #quantized_biases = tf.fake_quant_with_min_max_args(biases, -quantization_range/2, quantization_range/2, quantization_bits, narrow_range=False, name='quantized_weights')
+        #variable_summaries(quantized_biases)
+        quantized_biases = fake_quantize_tensor(biases, bits_b, -max_b, max_b, name="quantized_biases")
+        # quantized_biases = biases
+
+      with tf.name_scope('quantized_Wx_plus_b'):
         preactivate_q = tf.matmul(input_tensor, quantized_weights) + quantized_biases + noise
         #quantized_preactivate = tf.fake_quant_with_min_max_args(preactivate_q, -quantization_range/2, quantization_range/2, quantization_bits, narrow_range=False, name='quantized_weights')
         quantized_preactivate = fake_quantize_tensor(preactivate_q, bits_a, -max_a, max_a, name="quantized_preactivate")
         variable_summaries(quantized_preactivate)
         #tf.summary.histogram('quantized_pre_activations', quantized_preactivate)
 
-      quantized_activations = act(quantized_preactivate, name='quantized_activation') # Relu
+      quantized_activations = act(quantized_preactivate, name='quantized_activation') # Relu by default
       # tf.summary.histogram('quantized activations', quantized_activations)
       variable_summaries(quantized_activations)
       return quantized_activations
@@ -294,25 +337,99 @@ def train():
 
       return quantized_out_layer
 
+  # TODO: Create a Conv layer with Quantized variables, adding random noise
+  def conv_layer_quantized_add_noise(input_data, num_input_channels, num_filters, filter_shape, pool_shape, bits_w, max_w, bits_b, max_b, bits_a, max_a, layer_name):
+    with tf.name_scope(layer_name):
+      # setup the filter input shape for tf.nn.conv_2d
+      conv_filt_shape = [filter_shape[0], filter_shape[1], num_input_channels, num_filters]
+
+      # initialise weights and bias for the filter
+      with tf.name_scope('weights'):
+        weights = weight_variable(conv_filt_shape)
+        variable_summaries(weights)
+      with tf.name_scope('biases'):
+        # biases = bias_variable([num_filters])
+        biases = weight_variable([num_filters])
+        variable_summaries(biases)
+      with tf.name_scope('additive_noise'): # Add some noise to move some nodes into activation if they are close
+        noise = tf.random_normal([num_filters], mean=0.0, stddev=noise_stddev)
+        variable_summaries(noise)
+
+      # Quantization
+      with tf.name_scope('quantized_weights'):
+        quantized_weights = fake_quantize_tensor(weights, bits_w, -max_w, max_w, name="quantized_weights")
+      with tf.name_scope('quantized_biases'):
+        quantized_biases = fake_quantize_tensor(biases, bits_b, -max_b, max_b, name="quantized_biases")
+
+      with tf.name_scope('out_layer'):
+        # setup the convolutional layer operation
+        out_layer = tf.nn.conv2d(input_data, quantized_weights, [1, 1, 1, 1], padding='SAME')
+        out_layer = out_layer + quantized_biases + noise
+        quantized_out_layer = fake_quantize_tensor(out_layer, bits_a, -max_a, max_a, name="quantized_out_layer")
+        # apply a ReLU non-linear activation
+        quantized_out_layer = tf.nn.relu(quantized_out_layer)
+
+      # now perform max pooling
+      # ksize is the argument which defines the size of the max pooling window (i.e. the area over which the maximum is
+      # calculated).  It must be 4D to toe of frogmatch the convolution - in this case, for each image we want to use a 2 x 2 area
+      # applied to each channel
+      ksize = [1, pool_shape[0], pool_shape[1], 1]
+      # strides defines how the max pooling area moves through the image - a stride of 2 in the x direction will lead to
+      # max pooling areas starting at x=0, x=2, x=4 etc. through your image.  If the stride is 1, we will get max pooling
+      # overlapping previous max pooling areas (and no reduction in the number of parameters).  In this case, we want
+      # to do strides of 2 in the x and y directions.
+      strides = [1, 2, 2, 1]
+      quantized_out_layer = tf.nn.max_pool(quantized_out_layer, ksize=ksize, strides=strides, padding='SAME')
+
+      return quantized_out_layer
+
   # with tf.name_scope('ConvolutionLayers'):
-  layer1 = conv_layer_quantized(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits, conv1_b_max, conv1_a_bits, conv1_a_max, layer_name='conv1')
-  layer2 = conv_layer_quantized(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max, conv2_a_bits, conv2_a_max, layer_name='conv2')
+  layer1 = conv_layer_quantized_add_noise(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits, conv1_b_max, conv1_a_bits, conv1_a_max, layer_name='conv1')
+  layer2 = conv_layer_quantized_add_noise(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max, conv2_a_bits, conv2_a_max, layer_name='conv2')
 
   with tf.name_scope('flatten'):
-    x_flattened = tf.reshape(layer2, [-1, 7 * 7 * 64])
+    x_flattened = tf.reshape(layer2, [-1, 7*7*64])
 
-  # with tf.name_scope('FullyConnectedLayers'):
-  # Layer 1 784x250
-  hidden1 = fc_layer_quantized(x_flattened, 7 * 7 * 64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, 'fully_connected1')
+  if(num_layers == 3):
+    # Layer 1 784x250
+    hidden1 = fc_layer_quantized_add_noise(x_flattened, 7*7*64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, 'fully_connected1')
 
-  with tf.name_scope('dropout'):
-    keep_prob = tf.placeholder(tf.float32)
-    tf.summary.scalar('dropout_keep_probability', keep_prob)
-    dropped = tf.nn.dropout(hidden1, keep_prob)
+    with tf.name_scope('dropout'):
+      keep_prob = tf.placeholder(tf.float32)
+      tf.summary.scalar('dropout_keep_probability', keep_prob)
+      dropped = tf.nn.dropout(hidden1, keep_prob)
 
-  # Layer 2 250x10
-  # Do not apply softmax activation yet, see below.
-  y = fc_layer_quantized(dropped, fc1_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, 'fully_connected2', act=tf.identity)
+    # Middle Layer (using 3) 250x250
+    hidden2 = fc_layer_quantized_add_noise(dropped, fc1_depth, fc3_depth, fc3_w_bits, fc3_w_max, fc3_b_bits, fc3_b_max, fc3_a_bits, fc3_a_max, 'fully_connected_middle')
+
+    with tf.name_scope('dropout2'):
+      keep_prob2 = tf.placeholder(tf.float32)
+      tf.summary.scalar('dropout2_keep_probability', keep_prob2)
+      dropped2 = tf.nn.dropout(hidden2, keep_prob2)
+
+    # Layer 2 250x10
+    # Do not apply softmax activation yet, see below.
+    y = fc_layer_quantized_add_noise(dropped2, fc3_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, 'fully_connected2', act=tf.identity)
+
+  elif(num_layers == 1):
+    keep_prob = tf.placeholder(tf.float32)  # Need to create placeholders
+    keep_prob2 = tf.placeholder(tf.float32) # Even though they wont be used
+    y = fc_layer_quantized_add_noise(x_flattened, 7*7*64, 10, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, layer_name='fully_connected', act=tf.identity)
+
+  else: # Otherwise create 2 layers
+    # Layer 1 784x250
+    hidden1 = fc_layer_quantized_add_noise(x_flattened, 7*7*64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, 'fully_connected1')
+
+    with tf.name_scope('dropout'):
+      keep_prob = tf.placeholder(tf.float32)
+      tf.summary.scalar('dropout_keep_probability', keep_prob)
+      dropped = tf.nn.dropout(hidden1, keep_prob)
+
+    keep_prob2 = tf.placeholder(tf.float32)  # Need to create a placholder
+
+    # Layer 2 250x10
+    # Do not apply softmax activation yet, see below.
+    y = fc_layer_quantized_add_noise(dropped, fc1_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, 'fully_connected2', act=tf.identity)
 
   # test_layer = nn_layer(y, 10, 2, 'test_layer')
 
@@ -361,7 +478,7 @@ def train():
     else:
       xs, ys = mnist.test.images, mnist.test.labels
       k = 1.0
-    return {x: xs, y_: ys, keep_prob: k}
+    return {x: xs, y_: ys, keep_prob: k, keep_prob2: k}
 
   variables_initialized = True
 
@@ -422,7 +539,7 @@ if __name__ == '__main__':
   parser.add_argument('--fake_data', nargs='?', const=True, type=bool,
                       default=False,
                       help='If true, uses fake data for unit testing.')
-  parser.add_argument('--max_steps', type=int, default=2000,
+  parser.add_argument('--max_steps', type=int, default=max_steps,
                       help='Number of steps to run trainer.')
   parser.add_argument('--learning_rate', type=float, default=0.001,
                       help='Initial learning rate')
