@@ -15,10 +15,9 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 FLAGS = None
 
-# Set the number of Fully Connected Layers
-num_layers = 3
+max_steps = 5000
+num_layers = 3  # Set the number of Fully Connected Layers
 
-# Noise
 noise_stddev = 0.05
 
 # Conv 1
@@ -493,7 +492,7 @@ if __name__ == '__main__':
   parser.add_argument('--fake_data', nargs='?', const=True, type=bool,
                       default=False,
                       help='If true, uses fake data for unit testing.')
-  parser.add_argument('--max_steps', type=int, default=5000,
+  parser.add_argument('--max_steps', type=int, default=max_steps,
                       help='Number of steps to run trainer.')
   parser.add_argument('--learning_rate', type=float, default=0.001,
                       help='Initial learning rate')
