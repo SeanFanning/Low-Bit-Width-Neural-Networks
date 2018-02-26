@@ -232,12 +232,12 @@ def train():
   for i in range(FLAGS.max_steps):
     if FLAGS.load == True:
       break
-    if i % 100 == 99:  # Record summaries and test-set accuracy
+    if(i % 100 == 99):  # Record summaries and test-set accuracy
       summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
       test_writer.add_summary(summary, i)
       print('Accuracy at step %s: %s' % (i, acc))
     else:  # Record train set summaries, and train
-      if i % 100 == 0:  # Record execution stats
+      if(i % 100 == 0):  # Record execution stats
         run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
         run_metadata = tf.RunMetadata()
         summary, _ = sess.run([merged, train_step],
@@ -247,9 +247,10 @@ def train():
         train_writer.add_run_metadata(run_metadata, 'step%03d' % i)
         train_writer.add_summary(summary, i)
         print('Adding run metadata for', i)
-      else:  # Record a summary
+      elif(i % 10):  # Record a summary
         summary, _ = sess.run([merged, train_step], feed_dict=feed_dict(True))
         train_writer.add_summary(summary, i)
+
 
   # # Add ops to save and restore all the variables.
   # saver = tf.train.Saver()
