@@ -118,9 +118,18 @@ def train():
 
 
 
-  layer1 = create_conv_layer(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits, conv1_b_max, conv1_a_bits, conv1_a_max, noise_stddev, layer_name='conv1')
-  layer2 = create_conv_layer(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max, conv2_a_bits, conv2_a_max, noise_stddev, layer_name='conv2')
+  # # layer1 = conv_layer_quantized_add_noise(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits, conv1_b_max, conv1_a_bits, conv1_a_max, noise_stddev, layer_name='conv1')
+  # # layer1 = conv_layer_quantized(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits, conv1_b_max, conv1_a_bits, conv1_a_max, layer_name='conv1')
+  # layer1 = conv_layer(image_shaped_input, 1, 32, [5, 5], [2, 2], layer_name='conv1')
+  #
+  # # layer2 = conv_layer_quantized_add_noise(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max, conv2_a_bits, conv2_a_max, noise_stddev, layer_name='conv2')
+  # # layer2 = conv_layer_quantized(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max, conv2_a_bits, conv2_a_max, layer_name='conv2')
+  # layer2 = conv_layer(layer1, 32, 64, [5, 5], [2, 2], layer_name='conv2')
 
+  layer1 = create_conv_layer(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits,
+                             conv1_b_max, conv1_a_bits, conv1_a_max, noise_stddev, layer_name='conv1')
+  layer2 = create_conv_layer(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max,
+                             conv2_a_bits, conv2_a_max, noise_stddev, layer_name='conv2')
 
   with tf.name_scope('flatten'):
     x_flattened = tf.reshape(layer2, [-1, 7*7*64])
@@ -150,7 +159,12 @@ def train():
     y = create_fc_layer(x_flattened, 7*7*64, 10, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, layer_name='fully_connected', act=tf.identity)
 
   else: # Otherwise create 2 layers
-    hidden1 = create_fc_layer(x_flattened, 7*7*64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
+    # hidden1 = fc_layer_quantized_add_noise(x_flattened, 7*7*64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
+    # hidden1 = fc_layer_quantized(x_flattened, 7 * 7 * 64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, 'fully_connected1')
+    # hidden1 = fc_layer(x_flattened, 7 * 7 * 64, fc1_depth, 'fully_connected1')
+
+    hidden1 = create_fc_layer(x_flattened, 7 * 7 * 64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max,
+                              fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
 
     with tf.name_scope('dropout'):
       keep_prob = tf.placeholder(tf.float32)
@@ -160,10 +174,12 @@ def train():
     keep_prob2 = tf.placeholder(tf.float32)  # Need to create a placholder
 
     # Do not apply softmax activation yet, see below.
-    y = create_fc_layer(dropped, fc1_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, 'fully_connected2', act=tf.identity)
+    # y = fc_layer_quantized_add_noise(dropped, fc1_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, 'fully_connected2', act=tf.identity)
+    # y = fc_layer_quantized(dropped, fc1_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, 'fully_connected2', act=tf.identity)
+    # y = fc_layer(dropped, fc1_depth, fc2_depth, 'fully_connected2', act=tf.identity)
 
-
-
+    y = create_fc_layer(dropped, fc1_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits,
+                        fc2_a_max, noise_stddev, 'fully_connected2', act=tf.identity)
 
   with tf.name_scope('cross_entropy'):
     # The raw formulation of cross-entropy,
@@ -205,7 +221,7 @@ def train():
   def feed_dict(train):
     """Make a TensorFlow feed_dict: maps data onto Tensor placeholders."""
     if train or FLAGS.fake_data:
-      xs, ys = mnist.train.next_batch(64, fake_data=FLAGS.fake_data)
+      xs, ys = mnist.train.next_batch(128, fake_data=FLAGS.fake_data)
       k = FLAGS.dropout
     else:
       xs, ys = mnist.test.images, mnist.test.labels
@@ -216,12 +232,12 @@ def train():
   for i in range(FLAGS.max_steps):
     if FLAGS.load == True:
       break
-    if i % 10 == 0:  # Record summaries and test-set accuracy
+    if i % 100 == 99:  # Record summaries and test-set accuracy
       summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
       test_writer.add_summary(summary, i)
       print('Accuracy at step %s: %s' % (i, acc))
     else:  # Record train set summaries, and train
-      if i % 100 == 99:  # Record execution stats
+      if i % 100 == 0:  # Record execution stats
         run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
         run_metadata = tf.RunMetadata()
         summary, _ = sess.run([merged, train_step],
@@ -248,7 +264,7 @@ def train():
 
 
   summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
-  test_writer.add_summary(summary, 1999)
+  test_writer.add_summary(summary, 4999)
   test_writer.close()
   print('Accuracy at Completion: %s' % (acc))
   # sess.run(tf.contrib.memory_stats.BytesInUse())
