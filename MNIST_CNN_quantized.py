@@ -18,9 +18,11 @@ from src.custom_fully_connected_layers import fc_layer_quantized_add_noise, fc_l
 FLAGS = None
 
 num_layers = 2  # Set the number of Fully Connected Layers
+quantization_enabled = False
 
 noise_stddev = 0.05
-# No noise enabled
+noise_enabled_fc = False
+noise_enabled_conv = False
 
 # Conv 1
 conv1_w_bits = 3
@@ -97,22 +99,35 @@ def train():
     image_shaped_input = tf.reshape(x, [-1, 28, 28, 1])
     tf.summary.image('input', image_shaped_input, 10)
 
+  def create_fc_layer(input_tensor, input_dim, output_dim, bits_w, max_w, bits_b, max_b, bits_a, max_a, noise_stddev, layer_name, act=tf.nn.relu):
+    if(quantization_enabled == False):
+      return fc_layer(input_tensor, input_dim, output_dim, layer_name, act)
+    elif(noise_enabled_fc == False):
+      return fc_layer_quantized(input_tensor, input_dim, output_dim, bits_w, max_w, bits_b, max_b, bits_a, max_a, layer_name, act)
+    else:
+      return fc_layer_quantized_add_noise(input_tensor, input_dim, output_dim, bits_w, max_w, bits_b, max_b, bits_a, max_a, noise_stddev, layer_name, act)
+
+  def create_conv_layer(input_data, num_input_channels, num_filters, filter_shape, pool_shape, bits_w, max_w, bits_b, max_b, bits_a, max_a, noise_stddev, layer_name):
+    if(quantization_enabled == False):
+      return conv_layer(input_data, num_input_channels, num_filters, filter_shape, pool_shape, layer_name)
+    elif(noise_enabled_conv == False):
+      return conv_layer_quantized(input_data, num_input_channels, num_filters, filter_shape, pool_shape, bits_w, max_w, bits_b, max_b, bits_a, max_a, layer_name)
+    else:
+      return conv_layer_quantized_add_noise(input_data, num_input_channels, num_filters, filter_shape, pool_shape, bits_w, max_w, bits_b, max_b, bits_a, max_a, noise_stddev, layer_name)
 
 
 
-  # Adding noise to the conv layers seems to make them very unstable - maybe try by using smaller stddev than fc layers
-  # layer1 = conv_layer_quantized_add_noise(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits, conv1_b_max, conv1_a_bits, conv1_a_max, noise_stddev, layer_name='conv1')
-  # layer2 = conv_layer_quantized_add_noise(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max, conv2_a_bits, conv2_a_max, noise_stddev, layer_name='conv2')
 
-  layer1 = conv_layer_quantized(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits, conv1_b_max, conv1_a_bits, conv1_a_max, layer_name='conv1')
-  layer2 = conv_layer_quantized(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max, conv2_a_bits, conv2_a_max, layer_name='conv2')
+
+  layer1 = create_conv_layer(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits, conv1_b_max, conv1_a_bits, conv1_a_max, layer_name='conv1')
+  layer2 = create_conv_layer(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max, conv2_a_bits, conv2_a_max, layer_name='conv2')
 
 
   with tf.name_scope('flatten'):
     x_flattened = tf.reshape(layer2, [-1, 7*7*64])
 
   if(num_layers == 3):
-    hidden1 = fc_layer_quantized_add_noise(x_flattened, 7*7*64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
+    hidden1 = create_fc_layer(x_flattened, 7*7*64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
 
     with tf.name_scope('dropout'):
       keep_prob = tf.placeholder(tf.float32)
@@ -120,7 +135,7 @@ def train():
       dropped = tf.nn.dropout(hidden1, keep_prob)
 
     # Middle Layer (using settings 3)
-    hidden2 = fc_layer_quantized_add_noise(dropped, fc1_depth, fc3_depth, fc3_w_bits, fc3_w_max, fc3_b_bits, fc3_b_max, fc3_a_bits, fc3_a_max, noise_stddev, 'fully_connected_middle')
+    hidden2 = create_fc_layer(dropped, fc1_depth, fc3_depth, fc3_w_bits, fc3_w_max, fc3_b_bits, fc3_b_max, fc3_a_bits, fc3_a_max, noise_stddev, 'fully_connected_middle')
 
     with tf.name_scope('dropout2'):
       keep_prob2 = tf.placeholder(tf.float32)
@@ -128,15 +143,15 @@ def train():
       dropped2 = tf.nn.dropout(hidden2, keep_prob2)
 
     # Do not apply softmax activation yet, see below.
-    y = fc_layer_quantized_add_noise(dropped2, fc3_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, 'fully_connected2', act=tf.identity)
+    y = create_fc_layer(dropped2, fc3_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, 'fully_connected2', act=tf.identity)
 
   elif(num_layers == 1):
     keep_prob = tf.placeholder(tf.float32)  # Need to create placeholders
     keep_prob2 = tf.placeholder(tf.float32) # Even though they wont be used
-    y = fc_layer_quantized_add_noise(x_flattened, 7*7*64, 10, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, layer_name='fully_connected', act=tf.identity)
+    y = create_fc_layer(x_flattened, 7*7*64, 10, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, layer_name='fully_connected', act=tf.identity)
 
   else: # Otherwise create 2 layers
-    hidden1 = fc_layer_quantized_add_noise(x_flattened, 7*7*64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
+    hidden1 = create_fc_layer(x_flattened, 7*7*64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
 
     with tf.name_scope('dropout'):
       keep_prob = tf.placeholder(tf.float32)
@@ -146,7 +161,7 @@ def train():
     keep_prob2 = tf.placeholder(tf.float32)  # Need to create a placholder
 
     # Do not apply softmax activation yet, see below.
-    y = fc_layer_quantized_add_noise(dropped, fc1_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, 'fully_connected2', act=tf.identity)
+    y = create_fc_layer(dropped, fc1_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, 'fully_connected2', act=tf.identity)
 
 
 
@@ -198,7 +213,6 @@ def train():
       k = 1.0
     return {x: xs, y_: ys, keep_prob: k, keep_prob2: k}
 
-  variables_initialized = True
 
   for i in range(FLAGS.max_steps):
     if FLAGS.load == True:
