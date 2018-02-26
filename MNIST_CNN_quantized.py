@@ -18,6 +18,7 @@ from src.custom_fully_connected_layers import fc_layer_quantized_add_noise, fc_l
 
 FLAGS = None
 
+record_summaries = True # Disable recording summaries frequently to improve performance
 num_layers = 2  # Set the number of Fully Connected Layers
 quantization_enabled = False
 
@@ -237,7 +238,7 @@ def train():
       test_writer.add_summary(summary, i)
       print('Accuracy at step %s: %s' % (i, acc))
     else:  # Record train set summaries, and train
-      if(i % 100 == 0):  # Record execution stats
+      if(i % 100 == 0 and record_summaries == True):  # Record execution stats
         print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
         run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
         run_metadata = tf.RunMetadata()
@@ -254,6 +255,13 @@ def train():
         train_writer.add_summary(summary, i)
 
 
+  print("Training Completed\t", datetime.datetime.now().strftime("%H:%M:%S"))
+  summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
+  test_writer.add_summary(summary, 5000)
+  test_writer.close()
+  print('Accuracy at Completion: %s' % (acc))
+
+
   # # Add ops to save and restore all the variables.
   # saver = tf.train.Saver()
   # if FLAGS.load == False:
@@ -266,11 +274,7 @@ def train():
   train_writer.close()
 
 
-  summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
-  test_writer.add_summary(summary, 4999)
-  test_writer.close()
-  print('Accuracy at Completion: %s' % (acc))
-  # sess.run(tf.contrib.memory_stats.BytesInUse())
+
 
 
 
