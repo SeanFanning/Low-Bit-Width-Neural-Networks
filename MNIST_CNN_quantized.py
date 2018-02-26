@@ -18,7 +18,7 @@ from src.custom_fully_connected_layers import fc_layer_quantized_add_noise, fc_l
 
 FLAGS = None
 
-record_summaries = True # Disable recording summaries frequently to improve performance
+record_summaries = False # Disable recording summaries frequently to improve performance
 num_layers = 2  # Set the number of Fully Connected Layers
 quantization_enabled = False
 
@@ -232,13 +232,13 @@ def train():
 
 
   for i in range(FLAGS.max_steps):
-    if(i % 100 == 99):  # Record summaries and test-set accuracy
+    if(i % 100 == 99 and record_summaries == True):  # Record summaries and test-set accuracy
       print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
       summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
       test_writer.add_summary(summary, i)
       print('Accuracy at step %s: %s' % (i, acc))
     else:  # Record train set summaries, and train
-      if(i % 100 == 0 and record_summaries == True):  # Record execution stats
+      if(i % 100 == 0):  # Record execution stats
         print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
         run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
         run_metadata = tf.RunMetadata()
