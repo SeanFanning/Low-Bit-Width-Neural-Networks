@@ -257,9 +257,9 @@ def train():
 
   print("Training Completed\t", datetime.datetime.now().strftime("%H:%M:%S"))
   summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
-  test_writer.add_summary(summary, 5000)
+  test_writer.add_summary(summary, FLAGS.max_steps + 1)
   test_writer.close()
-  print('Accuracy at Completion: %s' % (acc))
+  print('Accuracy at step ', FLAGS.max_steps+1, ': %s' % (acc))
 
 
   # # Add ops to save and restore all the variables.
@@ -293,7 +293,7 @@ if __name__ == '__main__':
   parser.add_argument('--fake_data', nargs='?', const=True, type=bool,
                       default=False,
                       help='If true, uses fake data for unit testing.')
-  parser.add_argument('--max_steps', type=int, default=5000,
+  parser.add_argument('--max_steps', type=int, default=10000,
                       help='Number of steps to run trainer.')
   parser.add_argument('--learning_rate', type=float, default=0.001,
                       help='Initial learning rate')
