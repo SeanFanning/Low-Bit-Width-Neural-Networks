@@ -19,32 +19,32 @@ from src.custom_fully_connected_layers import fc_layer_quantized_add_noise, fc_l
 FLAGS = None
 
 record_summaries = False # Disable recording summaries frequently to improve performance
-num_layers = 2  # Set the number of Fully Connected Layers
-quantization_enabled = False
+num_layers = 3  # Set the number of Fully Connected Layers
+quantization_enabled = True
 
 noise_stddev = 0.05
-noise_enabled_fc = False
-noise_enabled_conv = False
+noise_enabled_fc = True
+noise_enabled_conv = True
 
 # Conv 1
-conv1_w_bits = 3
+conv1_w_bits = 4
 conv1_w_min = -0.3
 conv1_w_max = 0.3
-conv1_b_bits = 3
+conv1_b_bits = 4
 conv1_b_min = -0.3
 conv1_b_max = 0.3
-conv1_a_bits = 3
+conv1_a_bits = 4
 conv1_a_min = -8
 conv1_a_max = 8
 
 # Conv 2
-conv2_w_bits = 3
+conv2_w_bits = 4
 conv2_w_min = -0.3
 conv2_w_max = 0.3
-conv2_b_bits = 3
+conv2_b_bits = 4
 conv2_b_min = -0.3
 conv2_b_max = 0.3
-conv2_a_bits = 3
+conv2_a_bits = 4
 conv2_a_min = -8
 conv2_a_max = 8
 
@@ -74,13 +74,13 @@ fc2_a_max = 8
 
 # Fully Connected 3 (MIDDLE)
 fc3_depth = 250
-fc3_w_bits = 3
+fc3_w_bits = 2
 fc3_w_min = -0.3
 fc3_w_max = 0.3
-fc3_b_bits = 3
+fc3_b_bits = 2
 fc3_b_min = -0.3
 fc3_b_max = 0.3
-fc3_a_bits = 3
+fc3_a_bits = 2
 fc3_a_min = -8
 fc3_a_max = 8
 
@@ -253,6 +253,10 @@ def train():
         # print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
         summary, _ = sess.run([merged, train_step], feed_dict=feed_dict(True))
         train_writer.add_summary(summary, i)
+      elif(i >= FLAGS.max_steps - 5):
+        summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
+        test_writer.add_summary(summary, i)
+        print(datetime.datetime.now().strftime("%H:%M:%S"), '\tAccuracy at step %s: %s' % (i, acc))
 
 
   print("Training Completed\t", datetime.datetime.now().strftime("%H:%M:%S"))
