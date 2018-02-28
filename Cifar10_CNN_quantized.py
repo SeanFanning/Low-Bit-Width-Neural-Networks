@@ -13,9 +13,9 @@ import tarfile
 import urllib
 
 import tensorflow as tf
-from tensorflow.examples.tutorials.mnist import input_data
+# from tensorflow.examples.tutorials.mnist import input_data
 # from tensorflow.models.image.cifar10 import cifar10
-from keras.datasets import cifar10
+# from keras.datasets import cifar10
 
 from src.custom_convolution_layers import conv_layer_quantized_add_noise, conv_layer_quantized, conv_layer
 from src.custom_fully_connected_layers import fc_layer_quantized_add_noise, fc_layer_quantized, fc_layer
