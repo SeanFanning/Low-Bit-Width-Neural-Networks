@@ -69,7 +69,8 @@ NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
 MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
 NUM_EPOCHS_PER_DECAY = 350.0      # Epochs after which learning rate decays.
 LEARNING_RATE_DECAY_FACTOR = 0.1  # Learning rate decay factor.
-INITIAL_LEARNING_RATE = 0.1       # Initial learning rate.
+#INITIAL_LEARNING_RATE = 0.1       # Initial learning rate.
+INITIAL_LEARNING_RATE = 0.05
 
 # If a model is trained with multiple GPUs, prefix all Op names with tower_name
 # to differentiate the operations. Note that this prefix is removed from the
@@ -357,15 +358,15 @@ def inference(images):
   #   _activation_summary(local3)
 
   # # local4
-  with tf.variable_scope('local4') as scope:
-    weights = _variable_with_weight_decay('weights', shape=[384, 192],
-                                          stddev=0.04, wd=0.004)
-    biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
-    local4 = tf.nn.relu(tf.matmul(hidden1, weights) + biases, name=scope.name)
-    _activation_summary(local4)
+  # with tf.variable_scope('local4') as scope:
+  #   weights = _variable_with_weight_decay('weights', shape=[384, 192],
+  #                                         stddev=0.04, wd=0.004)
+  #   biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
+  #   local4 = tf.nn.relu(tf.matmul(hidden1, weights) + biases, name=scope.name)
+  #   _activation_summary(local4)
 
   # Middle Layer (using settings 3)
-  #hidden2 = create_fc_layer(hidden1, 384, 192, fc3_w_bits, fc3_w_max, fc3_b_bits, fc3_b_max, fc3_a_bits, fc3_a_max, noise_stddev, 'fully_connected_middle')
+  hidden2 = create_fc_layer(hidden1, 384, 192, fc3_w_bits, fc3_w_max, fc3_b_bits, fc3_b_max, fc3_a_bits, fc3_a_max, noise_stddev, 'fully_connected_middle')
 
   #y = create_fc_layer(hidden2, 192, 10, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, 'fully_connected2', act=tf.identity)
 
@@ -373,15 +374,17 @@ def inference(images):
   # We don't apply softmax here because
   # tf.nn.sparse_softmax_cross_entropy_with_logits accepts the unscaled logits
   # and performs the softmax internally for efficiency.
-  with tf.variable_scope('softmax_linear') as scope:
-    weights = _variable_with_weight_decay('weights', [192, NUM_CLASSES],
-                                          stddev=1/192.0, wd=0.0)
-    biases = _variable_on_cpu('biases', [NUM_CLASSES],
-                              tf.constant_initializer(0.0))
-    softmax_linear = tf.add(tf.matmul(local4, weights), biases, name=scope.name)
-    _activation_summary(softmax_linear)
+  # with tf.variable_scope('softmax_linear') as scope:
+  #   weights = _variable_with_weight_decay('weights', [192, NUM_CLASSES],
+  #                                         stddev=1/192.0, wd=0.0)
+  #   biases = _variable_on_cpu('biases', [NUM_CLASSES],
+  #                             tf.constant_initializer(0.0))
+  #   softmax_linear = tf.add(tf.matmul(hidden2, weights), biases, name=scope.name)
+  #   _activation_summary(softmax_linear)
 
-  return softmax_linear
+  y = create_fc_layer(hidden2, 192, 10, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, 'fully_connected2', act=tf.identity)
+
+  return y # softmax_linear
 
 
 def loss(logits, labels):
