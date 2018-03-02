@@ -23,69 +23,70 @@ num_layers = 3  # Set the number of Fully Connected Layers
 quantization_enabled = True
 
 noise_stddev = 0.05
-noise_enabled_fc = True
-noise_enabled_conv = True
+noise_enabled_fc = False
+noise_enabled_conv = False
 
 # Conv 1
-conv1_w_bits = 4
+conv1_w_bits = 2
 conv1_w_min = -0.3
 conv1_w_max = 0.3
-conv1_b_bits = 4
+conv1_b_bits = 2
 conv1_b_min = -0.3
 conv1_b_max = 0.3
-conv1_a_bits = 4
+conv1_a_bits = 2
 conv1_a_min = -1
 conv1_a_max = 1
 
 # Conv 2
-conv2_w_bits = 4
+conv2_w_bits = 2
 conv2_w_min = -0.3
 conv2_w_max = 0.3
-conv2_b_bits = 4
+conv2_b_bits = 2
 conv2_b_min = -0.3
 conv2_b_max = 0.3
-conv2_a_bits = 4
+conv2_a_bits = 2
 conv2_a_min = -1
 conv2_a_max = 1
 
 # Fully Connected 1
 fc1_depth = 250
-fc1_w_bits = 4
+fc1_w_bits = 2
 fc1_w_min = -0.3
 fc1_w_max = 0.3
-fc1_b_bits = 4
+fc1_b_bits = 2
 fc1_b_min = -0.3
 fc1_b_max = 0.3
-fc1_a_bits = 4
+fc1_a_bits = 2
 fc1_a_min = -2
 fc1_a_max = 2
 
 # Fully Connected 2 (OUTPUT)
 fc2_depth = 10
-fc2_w_bits = 4
+fc2_w_bits = 2
 fc2_w_min = -0.3
 fc2_w_max = 0.3
-fc2_b_bits = 4
+fc2_b_bits = 2
 fc2_b_min = -0.3
 fc2_b_max = 0.3
-fc2_a_bits = 4
+fc2_a_bits = 2
 fc2_a_min = -2
 fc2_a_max = 2
 
 # Fully Connected 3 (MIDDLE)
 fc3_depth = 250
-fc3_w_bits = 4
+fc3_w_bits = 2
 fc3_w_min = -0.3
 fc3_w_max = 0.3
-fc3_b_bits = 4
+fc3_b_bits = 2
 fc3_b_min = -0.3
 fc3_b_max = 0.3
-fc3_a_bits = 4
+fc3_a_bits = 2
 fc3_a_min = -2
 fc3_a_max = 2
 
 
 def train():
+  avg_accuracy=0
   # Import data
   mnist = input_data.read_data_sets(FLAGS.data_dir, fake_data=FLAGS.fake_data)
 
@@ -257,6 +258,7 @@ def train():
         summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
         test_writer.add_summary(summary, i)
         print('Accuracy at step %s: %s' % (i, acc))
+        avg_accuracy += acc
 
 
   print("Training Completed: ", datetime.datetime.now().strftime("%H:%M:%S"))
@@ -264,6 +266,9 @@ def train():
   test_writer.add_summary(summary, FLAGS.max_steps + 1)
   test_writer.close()
   print('Accuracy at step ', FLAGS.max_steps, ': %s' % (acc))
+  avg_accuracy += acc
+  avg_accuracy /= 6
+  print('Final accuracy (Averaged): ', avg_accuracy)
 
 
   # # Add ops to save and restore all the variables.
