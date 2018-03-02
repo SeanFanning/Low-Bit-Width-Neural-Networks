@@ -239,7 +239,7 @@ def train():
       test_writer.add_summary(summary, i)
       print('Accuracy at step %s: %s' % (i, acc))
     else:  # Record train set summaries, and train
-      if(i % 1000 == 0):  # Record execution stats
+      if(i % 100 == 98):  # Record execution stats
         print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
         run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
         run_metadata = tf.RunMetadata()
@@ -250,15 +250,23 @@ def train():
         train_writer.add_run_metadata(run_metadata, 'step%03d' % i)
         train_writer.add_summary(summary, i)
         print('Adding run metadata for', i)
-      elif(i % 100 == 0):  # Record a summary
-        # print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
-        summary, _ = sess.run([merged, train_step], feed_dict=feed_dict(True))
-        train_writer.add_summary(summary, i)
+      # elif(i % 1000 == 0):  # Record a summary
+      #   # print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
+      #   summary, _ = sess.run([merged, train_step], feed_dict=feed_dict(True))
+      #   train_writer.add_summary(summary, i)
       elif(i >= FLAGS.max_steps - 5):
         summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
         test_writer.add_summary(summary, i)
         print('Accuracy at step %s: %s' % (i, acc))
         avg_accuracy += acc
+      elif(i % 1000 == 999):
+        print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
+        summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
+        test_writer.add_summary(summary, i)
+        print('Accuracy at step %s: %s' % (i, acc))
+      else: # Record a summary
+        summary, _ = sess.run([merged, train_step], feed_dict=feed_dict(True))
+        train_writer.add_summary(summary, i)
 
 
   print("Training Completed: ", datetime.datetime.now().strftime("%H:%M:%S"))
@@ -302,7 +310,7 @@ if __name__ == '__main__':
   parser.add_argument('--fake_data', nargs='?', const=True, type=bool,
                       default=False,
                       help='If true, uses fake data for unit testing.')
-  parser.add_argument('--max_steps', type=int, default=10000,
+  parser.add_argument('--max_steps', type=int, default=100000,
                       help='Number of steps to run trainer.')
   parser.add_argument('--learning_rate', type=float, default=0.001,
                       help='Initial learning rate')
