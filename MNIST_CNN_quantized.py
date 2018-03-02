@@ -9,6 +9,7 @@ import argparse
 import os
 import sys
 import datetime
+import shutil
 
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
@@ -232,51 +233,38 @@ def train():
     return {x: xs, y_: ys, keep_prob: k, keep_prob2: k}
 
 
-  for i in range(FLAGS.max_steps):
-    if(i % 100 == 99 and record_summaries == True and i <= 1000):  # Record summaries and test-set accuracy
-      print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
+  for i in range(FLAGS.max_steps + 5):
+    if(i >= FLAGS.max_steps):
       summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
       test_writer.add_summary(summary, i)
-      print('Accuracy at step %s: %s' % (i, acc))
-    else:  # Record train set summaries, and train
-      if(i % 100 == 98):  # Record execution stats
-        print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
-        run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-        run_metadata = tf.RunMetadata()
-        summary, _ = sess.run([merged, train_step],
-                              feed_dict=feed_dict(True),
-                              options=run_options,
-                              run_metadata=run_metadata)
-        train_writer.add_run_metadata(run_metadata, 'step%03d' % i)
-        train_writer.add_summary(summary, i)
-        print('Adding run metadata for', i)
-      # elif(i % 1000 == 0):  # Record a summary
-      #   # print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
-      #   summary, _ = sess.run([merged, train_step], feed_dict=feed_dict(True))
-      #   train_writer.add_summary(summary, i)
-      elif(i >= FLAGS.max_steps - 5):
-        summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
-        test_writer.add_summary(summary, i)
-        print('Accuracy at step %s: %s' % (i, acc))
-        avg_accuracy += acc
-      elif(i % 1000 == 999):
-        print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
-        summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
-        test_writer.add_summary(summary, i)
-        print('Accuracy at step %s: %s' % (i, acc))
-      else: # Record a summary
-        summary, _ = sess.run([merged, train_step], feed_dict=feed_dict(True))
-        train_writer.add_summary(summary, i)
+      print('Accuracy test %s: %s' % (i-FLAGS.max_steps, acc))
+      avg_accuracy += acc
+    elif(i % 100 == 99 and record_summaries == True and i <= 1000): # Record summaries and test-set accuracy
+      summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
+      test_writer.add_summary(summary, i)
+      print(datetime.datetime.now().strftime("%H:%M:%S"), 'Accuracy at step %s: %s' % (i, acc))
+    elif(i % 1000 == 999):  # Record summaries and test-set accuracy
+      summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
+      test_writer.add_summary(summary, i)
+      print(datetime.datetime.now().strftime("%H:%M:%S"), 'Accuracy at step %s: %s' % (i, acc))
+    elif(i % 100 == 0):
+      print(datetime.datetime.now().strftime("%H:%M:%S"), "Adding run metadata for Step: ", i)
+      run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+      run_metadata = tf.RunMetadata()
+      summary, _ = sess.run([merged, train_step],
+                            feed_dict=feed_dict(True),
+                            options=run_options,
+                            run_metadata=run_metadata)
+      train_writer.add_run_metadata(run_metadata, 'step%03d' % i)
+      train_writer.add_summary(summary, i)
+    else:  # Train and record summary
+      summary, _ = sess.run([merged, train_step], feed_dict=feed_dict(True))
+      train_writer.add_summary(summary, i)
+
 
 
   print("Training Completed: ", datetime.datetime.now().strftime("%H:%M:%S"))
-  summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
-  test_writer.add_summary(summary, FLAGS.max_steps + 1)
-  test_writer.close()
-  print('Accuracy at step ', FLAGS.max_steps, ': %s' % (acc))
-  avg_accuracy += acc
-  avg_accuracy /= 6
-  print('Final accuracy (Averaged): ', avg_accuracy)
+  print('Final accuracy: ', avg_accuracy/5)
 
 
   # # Add ops to save and restore all the variables.
@@ -299,6 +287,7 @@ def main(_):
   if tf.gfile.Exists(FLAGS.log_dir):
     print("Deleting existing dir: ", FLAGS.log_dir)
     tf.gfile.DeleteRecursively(FLAGS.log_dir)
+    shutil.rmtree(FLAGS.log_dir)
   tf.gfile.MakeDirs(FLAGS.log_dir)
 
 
@@ -310,7 +299,7 @@ if __name__ == '__main__':
   parser.add_argument('--fake_data', nargs='?', const=True, type=bool,
                       default=False,
                       help='If true, uses fake data for unit testing.')
-  parser.add_argument('--max_steps', type=int, default=100000,
+  parser.add_argument('--max_steps', type=int, default=10000,
                       help='Number of steps to run trainer.')
   parser.add_argument('--learning_rate', type=float, default=0.001,
                       help='Initial learning rate')
