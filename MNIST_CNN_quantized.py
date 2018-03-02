@@ -233,13 +233,13 @@ def train():
 
 
   for i in range(FLAGS.max_steps):
-    if(i % 100 == 99 and record_summaries == True):  # Record summaries and test-set accuracy
+    if(i % 100 == 99 and record_summaries == True and i <= 1000):  # Record summaries and test-set accuracy
       print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
       summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
       test_writer.add_summary(summary, i)
       print('Accuracy at step %s: %s' % (i, acc))
     else:  # Record train set summaries, and train
-      if(i % 100 == 0):  # Record execution stats
+      if(i % 1000 == 0):  # Record execution stats
         print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
         run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
         run_metadata = tf.RunMetadata()
@@ -250,7 +250,7 @@ def train():
         train_writer.add_run_metadata(run_metadata, 'step%03d' % i)
         train_writer.add_summary(summary, i)
         print('Adding run metadata for', i)
-      elif(i % 10 == 0):  # Record a summary
+      elif(i % 100 == 0):  # Record a summary
         # print(datetime.datetime.now().strftime("%H:%M:%S"), "\tStep: ", i)
         summary, _ = sess.run([merged, train_step], feed_dict=feed_dict(True))
         train_writer.add_summary(summary, i)
