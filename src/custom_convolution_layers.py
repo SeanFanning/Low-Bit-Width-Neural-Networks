@@ -74,15 +74,8 @@ def conv_layer_quantized(input_data, num_input_channels, num_filters, filter_sha
       # apply a ReLU non-linear activation
       quantized_out_layer = tf.nn.relu(quantized_out_layer)
 
-    # now perform max pooling
-    # ksize is the argument which defines the size of the max pooling window (i.e. the area over which the maximum is
-    # calculated).  It must be 4D to toe of frogmatch the convolution - in this case, for each image we want to use a 2 x 2 area
-    # applied to each channel
     ksize = [1, pool_shape[0], pool_shape[1], 1]
-    # strides defines how the max pooling area moves through the image - a stride of 2 in the x direction will lead to
-    # max pooling areas starting at x=0, x=2, x=4 etc. through your image.  If the stride is 1, we will get max pooling
-    # overlapping previous max pooling areas (and no reduction in the number of parameters).  In this case, we want
-    # to do strides of 2 in the x and y directions.
+
     strides = [1, 2, 2, 1]
     quantized_out_layer = tf.nn.max_pool(quantized_out_layer, ksize=ksize, strides=strides, padding='SAME')
 
@@ -112,24 +105,19 @@ def conv_layer_quantized_add_noise(input_data, num_input_channels, num_filters, 
       quantized_weights = fake_quantize_tensor(weights, bits_w, -max_w, max_w, name="quantized_weights")
     with tf.name_scope('quantized_biases'):
       quantized_biases = fake_quantize_tensor(biases, bits_b, -max_b, max_b, name="quantized_biases")
+    with tf.name_scope('quantized_noise'):
+      quantized_noise = fake_quantize_tensor(noise, bits_b, -noise_stddev*2, noise_stddev*2, name="quantized_noise")
 
     with tf.name_scope('out_layer'):
       # setup the convolutional layer operation
       out_layer = tf.nn.conv2d(input_data, quantized_weights, [1, 1, 1, 1], padding='SAME')
-      out_layer = out_layer + quantized_biases + noise
+      out_layer = out_layer + quantized_biases + quantized_noise
       quantized_out_layer = fake_quantize_tensor(out_layer, bits_a, -max_a, max_a, name="quantized_out_layer")
       # apply a ReLU non-linear activation
       quantized_out_layer = tf.nn.relu(quantized_out_layer)
 
-    # now perform max pooling
-    # ksize is the argument which defines the size of the max pooling window (i.e. the area over which the maximum is
-    # calculated).  It must be 4D to toe of frogmatch the convolution - in this case, for each image we want to use a 2 x 2 area
-    # applied to each channel
     ksize = [1, pool_shape[0], pool_shape[1], 1]
-    # strides defines how the max pooling area moves through the image - a stride of 2 in the x direction will lead to
-    # max pooling areas starting at x=0, x=2, x=4 etc. through your image.  If the stride is 1, we will get max pooling
-    # overlapping previous max pooling areas (and no reduction in the number of parameters).  In this case, we want
-    # to do strides of 2 in the x and y directions.
+
     strides = [1, 2, 2, 1]
     quantized_out_layer = tf.nn.max_pool(quantized_out_layer, ksize=ksize, strides=strides, padding='SAME')
 
