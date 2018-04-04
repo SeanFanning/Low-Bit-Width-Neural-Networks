@@ -22,16 +22,17 @@ FLAGS = None
 record_summaries = False # Disable recording summaries to improve performance
 num_layers = 2  # Set the number of Fully Connected Layers
 quantization_enabled = True
+conv_enabled = False
 
 noise_stddev = 0.05
-noise_enabled_fc = True
-noise_enabled_conv = True
+noise_enabled_fc = False
+noise_enabled_conv = False
 
 # Conv 1
-conv1_w_bits = 4
+conv1_w_bits = 2
 conv1_w_min = -0.3
 conv1_w_max = 0.3
-conv1_b_bits = 4
+conv1_b_bits = 2
 conv1_b_min = -0.3
 conv1_b_max = 0.3
 conv1_a_bits = 4
@@ -39,10 +40,10 @@ conv1_a_min = -1
 conv1_a_max = 1
 
 # Conv 2
-conv2_w_bits = 4
+conv2_w_bits = 2
 conv2_w_min = -0.3
 conv2_w_max = 0.3
-conv2_b_bits = 4
+conv2_b_bits = 2
 conv2_b_min = -0.3
 conv2_b_max = 0.3
 conv2_a_bits = 4
@@ -50,11 +51,11 @@ conv2_a_min = -1
 conv2_a_max = 1
 
 # Fully Connected 1
-fc1_depth = 250
-fc1_w_bits = 4
+fc1_depth = 500
+fc1_w_bits = 2
 fc1_w_min = -0.3
 fc1_w_max = 0.3
-fc1_b_bits = 4
+fc1_b_bits = 2
 fc1_b_min = -0.3
 fc1_b_max = 0.3
 fc1_a_bits = 4
@@ -63,10 +64,10 @@ fc1_a_max = 2
 
 # Fully Connected 2 (OUTPUT)
 fc2_depth = 10
-fc2_w_bits = 4
+fc2_w_bits = 2
 fc2_w_min = -0.3
 fc2_w_max = 0.3
-fc2_b_bits = 4
+fc2_b_bits = 2
 fc2_b_min = -0.3
 fc2_b_max = 0.3
 fc2_a_bits = 4
@@ -75,10 +76,10 @@ fc2_a_max = 2
 
 # Fully Connected 3 (MIDDLE)
 fc3_depth = 250
-fc3_w_bits = 4
+fc3_w_bits = 2
 fc3_w_min = -0.3
 fc3_w_max = 0.3
-fc3_b_bits = 4
+fc3_b_bits = 2
 fc3_b_min = -0.3
 fc3_b_max = 0.3
 fc3_a_bits = 4
@@ -119,9 +120,6 @@ def train():
     else:
       return conv_layer_quantized_add_noise(input_data, num_input_channels, num_filters, filter_shape, pool_shape, bits_w, max_w, bits_b, max_b, bits_a, max_a, noise_stddev, layer_name)
 
-
-
-
   # # layer1 = conv_layer_quantized_add_noise(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits, conv1_b_max, conv1_a_bits, conv1_a_max, noise_stddev, layer_name='conv1')
   # # layer1 = conv_layer_quantized(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits, conv1_b_max, conv1_a_bits, conv1_a_max, layer_name='conv1')
   # layer1 = conv_layer(image_shaped_input, 1, 32, [5, 5], [2, 2], layer_name='conv1')
@@ -130,16 +128,22 @@ def train():
   # # layer2 = conv_layer_quantized(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max, conv2_a_bits, conv2_a_max, layer_name='conv2')
   # layer2 = conv_layer(layer1, 32, 64, [5, 5], [2, 2], layer_name='conv2')
 
-  layer1 = create_conv_layer(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits,
-                             conv1_b_max, conv1_a_bits, conv1_a_max, noise_stddev, layer_name='conv1')
-  layer2 = create_conv_layer(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max,
-                             conv2_a_bits, conv2_a_max, noise_stddev, layer_name='conv2')
+  if (conv_enabled):
+    layer1 = create_conv_layer(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits,
+                               conv1_b_max, conv1_a_bits, conv1_a_max, noise_stddev, layer_name='conv1')
+    layer2 = create_conv_layer(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max,
+                               conv2_a_bits, conv2_a_max, noise_stddev, layer_name='conv2')
 
-  with tf.name_scope('flatten'):
-    x_flattened = tf.reshape(layer2, [-1, 7*7*64])
+    with tf.name_scope('flatten'):
+      x_flattened = tf.reshape(layer2, [-1, 7*7*64])
+      x_shape = 7*7*64
+
+  else:
+    x_flattened = x
+    x_shape = 28*28
 
   if(num_layers == 3):
-    hidden1 = create_fc_layer(x_flattened, 7*7*64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
+    hidden1 = create_fc_layer(x_flattened, x_shape, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
 
     with tf.name_scope('dropout'):
       keep_prob = tf.placeholder(tf.float32)
@@ -160,14 +164,14 @@ def train():
   elif(num_layers == 1):
     keep_prob = tf.placeholder(tf.float32)  # Need to create placeholders
     keep_prob2 = tf.placeholder(tf.float32) # Even though they wont be used
-    y = create_fc_layer(x_flattened, 7*7*64, fc3_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, layer_name='fully_connected', act=tf.identity)
+    y = create_fc_layer(x_flattened, x_shape, fc3_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, layer_name='fully_connected', act=tf.identity)
 
   else: # Otherwise create 2 layers
     # hidden1 = fc_layer_quantized_add_noise(x_flattened, 7*7*64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
     # hidden1 = fc_layer_quantized(x_flattened, 7 * 7 * 64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, 'fully_connected1')
     # hidden1 = fc_layer(x_flattened, 7 * 7 * 64, fc1_depth, 'fully_connected1')
 
-    hidden1 = create_fc_layer(x_flattened, 7*7*64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max,
+    hidden1 = create_fc_layer(x_flattened, x_shape, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max,
                               fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
 
     with tf.name_scope('dropout'):
