@@ -18,6 +18,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 from src.custom_convolution_layers import conv_layer_quantized_add_noise, conv_layer_quantized, conv_layer
 from src.custom_fully_connected_layers import fc_layer_quantized_add_noise, fc_layer_quantized, fc_layer
 from src.quantize_tensor import fake_quantize_tensor
+from src.output_vars import get_weights, get_biases
 
 FLAGS = None
 
@@ -263,47 +264,6 @@ def train():
   print("Training Completed: ", datetime.datetime.now().strftime("%H:%M:%S"))
   print('Final accuracy: ', avg_accuracy/5)
 
-  # Hard code quantization to 2,2,4 for now
-  l1_b_base = -0.4
-  l1_b_steps = 2**fc1_b_bits
-  l1_b_step_size = 0.2  # (0.2-l1_b_base)/l1_b_steps (No idea what I was doing here) hard code it for now
-  l1_w_base = -0.4
-  l1_w_steps = 2 ** fc1_w_bits
-  l1_w_step_size = 0.2  # (0.2 - l1_w_base) / l1_w_steps
-
-  l2_b_base = -0.4
-  l2_b_steps = 2 ** fc2_b_bits
-  l2_b_step_size = 0.2  # (0.2 - l2_b_base) / l2_b_steps
-  l2_w_base = -0.4
-  l2_w_steps = 2 ** fc2_w_bits
-  l2_w_step_size = 0.2  # (0.2 - l2_w_base) / l2_w_steps
-
-  def get_biases(biases):
-    quantized_values = biases
-    i=0
-    for x in biases: # For each bias value
-      for step in range(0, l2_b_steps): # For each step in range
-        step_val = round(l2_b_base + step * l2_b_step_size, 4)  # Value of current step
-        if (x > (step_val - l2_b_step_size / 2) and x < (step_val + l2_b_step_size / 2)): # If bias value is within the range of this step
-          #print(x, " -> ", step_val)
-          quantized_values[i] = step_val
-      i += 1
-    return quantized_values
-
-  def get_weights(weights):
-    quantized_values = weights
-    j = 0
-    for y in weights: # For each weight array
-      i = 0
-      for x in y: # For each weight value in array
-        for step in range(0, l2_w_steps): # For each step in range
-          step_val = round(l2_w_base + step * l2_w_step_size, 4)  # Value of current step
-          if (x > (step_val - l2_w_step_size / 2) and x < (step_val + l2_w_step_size / 2)): # If bias value is within the range of this step
-            # print(x, " -> ", step_val)
-            quantized_values[j][i] = step_val
-        i += 1
-      j += 1
-    return quantized_values
 
   for var in tf.global_variables():
     # print(var)
