@@ -10,23 +10,27 @@ import os
 import sys
 import datetime
 import shutil
+import numpy as np
 
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 from src.custom_convolution_layers import conv_layer_quantized_add_noise, conv_layer_quantized, conv_layer
 from src.custom_fully_connected_layers import fc_layer_quantized_add_noise, fc_layer_quantized, fc_layer
+from src.quantize_tensor import fake_quantize_tensor
 
 FLAGS = None
 
 record_summaries = False # Disable recording summaries to improve performance
-num_layers = 2  # Set the number of Fully Connected Layers
+num_layers = 1  # Set the number of Fully Connected Layers
 quantization_enabled = True
 conv_enabled = False
 
 noise_stddev = 0.05
 noise_enabled_fc = False
 noise_enabled_conv = False
+
+input_quantization = 4
 
 # Conv 1
 conv1_w_bits = 2
@@ -89,11 +93,9 @@ fc3_a_max = 2
 
 def train():
   avg_accuracy=0
-  # Import data
   mnist = input_data.read_data_sets(FLAGS.data_dir, fake_data=FLAGS.fake_data)
 
   sess = tf.InteractiveSession()
-  # Create a multilayer model.
 
   # Input placeholders
   with tf.name_scope('input'):
@@ -104,6 +106,7 @@ def train():
     image_shaped_input = tf.reshape(x, [-1, 28, 28, 1])
     tf.summary.image('input', image_shaped_input, 10)
 
+  # Functions to create fc and conv layers depending on quantization settings
   def create_fc_layer(input_tensor, input_dim, output_dim, bits_w, max_w, bits_b, max_b, bits_a, max_a, noise_stddev, layer_name, act=tf.nn.relu):
     if(quantization_enabled == False):
       return fc_layer(input_tensor, input_dim, output_dim, layer_name, act)
@@ -120,16 +123,13 @@ def train():
     else:
       return conv_layer_quantized_add_noise(input_data, num_input_channels, num_filters, filter_shape, pool_shape, bits_w, max_w, bits_b, max_b, bits_a, max_a, noise_stddev, layer_name)
 
-  # # layer1 = conv_layer_quantized_add_noise(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits, conv1_b_max, conv1_a_bits, conv1_a_max, noise_stddev, layer_name='conv1')
-  # # layer1 = conv_layer_quantized(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits, conv1_b_max, conv1_a_bits, conv1_a_max, layer_name='conv1')
-  # layer1 = conv_layer(image_shaped_input, 1, 32, [5, 5], [2, 2], layer_name='conv1')
-  #
-  # # layer2 = conv_layer_quantized_add_noise(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max, conv2_a_bits, conv2_a_max, noise_stddev, layer_name='conv2')
-  # # layer2 = conv_layer_quantized(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max, conv2_a_bits, conv2_a_max, layer_name='conv2')
-  # layer2 = conv_layer(layer1, 32, 64, [5, 5], [2, 2], layer_name='conv2')
 
   if (conv_enabled):
-    layer1 = create_conv_layer(image_shaped_input, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits,
+    if (quantization_enabled):
+      image_shaped_input_quantized = fake_quantize_tensor(image_shaped_input, input_quantization, 0, 1, name="quantized_input")
+    else:
+      image_shaped_input_quantized = image_shaped_input
+    layer1 = create_conv_layer(image_shaped_input_quantized, 1, 32, [5, 5], [2, 2], conv1_w_bits, conv1_w_max, conv1_b_bits,
                                conv1_b_max, conv1_a_bits, conv1_a_max, noise_stddev, layer_name='conv1')
     layer2 = create_conv_layer(layer1, 32, 64, [5, 5], [2, 2], conv2_w_bits, conv2_w_max, conv2_b_bits, conv2_b_max,
                                conv2_a_bits, conv2_a_max, noise_stddev, layer_name='conv2')
@@ -139,8 +139,12 @@ def train():
       x_shape = 7*7*64
 
   else:
-    x_flattened = x
+    if(quantization_enabled):
+      x_flattened = fake_quantize_tensor(x, input_quantization, 0, 1, name="quantized_input")
+    else:
+      x_flattened = x
     x_shape = 28*28
+
 
   if(num_layers == 3):
     hidden1 = create_fc_layer(x_flattened, x_shape, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
@@ -164,13 +168,9 @@ def train():
   elif(num_layers == 1):
     keep_prob = tf.placeholder(tf.float32)  # Need to create placeholders
     keep_prob2 = tf.placeholder(tf.float32) # Even though they wont be used
-    y = create_fc_layer(x_flattened, x_shape, fc3_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, layer_name='fully_connected', act=tf.identity)
+    y = create_fc_layer(x_flattened, x_shape, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, layer_name='fully_connected', act=tf.identity)
 
   else: # Otherwise create 2 layers
-    # hidden1 = fc_layer_quantized_add_noise(x_flattened, 7*7*64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
-    # hidden1 = fc_layer_quantized(x_flattened, 7 * 7 * 64, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max, fc1_a_bits, fc1_a_max, 'fully_connected1')
-    # hidden1 = fc_layer(x_flattened, 7 * 7 * 64, fc1_depth, 'fully_connected1')
-
     hidden1 = create_fc_layer(x_flattened, x_shape, fc1_depth, fc1_w_bits, fc1_w_max, fc1_b_bits, fc1_b_max,
                               fc1_a_bits, fc1_a_max, noise_stddev, 'fully_connected1')
 
@@ -181,25 +181,17 @@ def train():
 
     keep_prob2 = tf.placeholder(tf.float32)  # Need to create a placholder
 
-    # Do not apply softmax activation yet, see below.
-    # y = fc_layer_quantized_add_noise(dropped, fc1_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, noise_stddev, 'fully_connected2', act=tf.identity)
-    # y = fc_layer_quantized(dropped, fc1_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits, fc2_a_max, 'fully_connected2', act=tf.identity)
-    # y = fc_layer(dropped, fc1_depth, fc2_depth, 'fully_connected2', act=tf.identity)
-
     y = create_fc_layer(dropped, fc1_depth, fc2_depth, fc2_w_bits, fc2_w_max, fc2_b_bits, fc2_b_max, fc2_a_bits,
                         fc2_a_max, noise_stddev, 'fully_connected2', act=tf.identity)
 
   with tf.name_scope('cross_entropy'):
-    # The raw formulation of cross-entropy,
+    # The raw formulation of cross-entropy can be numerically unstable.
     #
     # tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(tf.softmax(y)),
     #                               reduction_indices=[1]))
     #
-    # can be numerically unstable.
-    #
     # So here we use tf.losses.sparse_softmax_cross_entropy on the
-    # raw logit outputs of the nn_layer above, and then average across
-    # the batch.
+    # raw logit outputs of the nn_layer above, and then average across the batch.
     with tf.name_scope('total'):
       cross_entropy = tf.losses.sparse_softmax_cross_entropy(
           labels=y_, logits=y)
@@ -215,8 +207,7 @@ def train():
       accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
   tf.summary.scalar('accuracy', accuracy)
 
-  # Merge all the summaries and write them out to
-  # /tmp/tensorflow/mnist/logs/mnist_with_summaries (by default)
+  # Merge all the summaries and write them out
   merged = tf.summary.merge_all()
   train_writer = tf.summary.FileWriter(FLAGS.log_dir + '/train', sess.graph)
   test_writer = tf.summary.FileWriter(FLAGS.log_dir + '/test')
@@ -244,6 +235,7 @@ def train():
       test_writer.add_summary(summary, i)
       print('Accuracy test %s: %s' % (i-FLAGS.max_steps, acc))
       avg_accuracy += acc
+
     elif(i % 100 == 99 and record_summaries == True and i <= 1000): # Record summaries and test-set accuracy
       summary, acc = sess.run([merged, accuracy], feed_dict=feed_dict(False))
       test_writer.add_summary(summary, i)
@@ -271,16 +263,80 @@ def train():
   print("Training Completed: ", datetime.datetime.now().strftime("%H:%M:%S"))
   print('Final accuracy: ', avg_accuracy/5)
 
+  # Hard code quantization to 2,2,4 for now
+  l1_b_base = -0.4
+  l1_b_steps = 2**fc1_b_bits
+  l1_b_step_size = (0.2-l1_b_base)/l1_b_steps
+  l1_w_base = -0.4
+  l1_w_steps = 2 ** fc1_w_bits
+  l1_w_step_size = (0.2 - l1_w_base) / l1_w_steps
 
-  # # Add ops to save and restore all the variables.
+  l2_b_base = -0.4
+  l2_b_steps = 2 ** fc2_b_bits
+  l2_b_step_size = (0.2 - l2_b_base) / l2_b_steps
+  l2_w_base = -0.4
+  l2_w_steps = 2 ** fc2_w_bits
+  l2_w_step_size = (0.2 - l2_w_base) / l2_w_steps
+
+  for var in tf.global_variables():
+    # print(var)
+    if num_layers == 1:
+      if '/weights/Variable:0' in var.name:
+        print(var)
+        values = sess.run(var)
+        quantized_values = [len(values)][len(values[0])]
+        i=0
+        k=0
+        for y in values:
+          for x in y:
+            for j in range(1,l2_w_steps):
+              step = j*l2_w_step_size
+              if(x > (step - l2_w_step_size/2) and x < (step + l2_w_step_size/2)):
+                quantized_values[k][i] = j
+            i += 1
+          k += 1
+        np.savetxt("weights.csv", quantized_values, delimiter=",")
+      elif '/biases/Variable:0' in var.name:
+        print(var)
+        values = sess.run(var)
+        quantized_values = [len(values)]
+        i = 0
+        for x in values:
+          for j in range(1, l2_b_steps):
+            step = j * l2_b_step_size
+            if (x > (step - l2_b_step_size/2) and x < (step + l2_b_step_size/2)):
+              quantized_values[i] = j
+          i += 1
+        np.savetxt("biases.csv", quantized_values, delimiter=",")
+    else:
+      if 'fully_connected1/weights/Variable:0' in var.name:
+        print(var)
+        #np.savetxt("l1_weights.csv", sess.run(var), delimiter=",")
+      elif 'fully_connected1/biases/Variable:0' in var.name:
+        print(var)
+        #np.savetxt("l1_biases.csv", sess.run(var), delimiter=",")
+      elif 'fully_connected2/weights/Variable:0' in var.name:
+        print(var)
+        #np.savetxt("l2_weights.csv", sess.run(var), delimiter=",")
+      elif 'fully_connected2/biases/Variable:0' in var.name:
+        print(var)
+        #np.savetxt("l2_biases.csv", sess.run(var), delimiter=",")
+      elif 'fully_connected3/weights/Variable:0' in var.name:
+        print(var)
+        #np.savetxt("l3_weights.csv", sess.run(var), delimiter=",")
+      elif 'fully_connected3/biases/Variable:0' in var.name:
+        print(var)
+        #np.savetxt("l3_biases.csv", sess.run(var), delimiter=",")
+
+  #f = open("tmp.txt", 'w')
+  #f.write(sess.run(y))
+  #sess.run(tf.Print(tf.get_collection(tf.GraphKeys.VARIABLES)))
+
   # saver = tf.train.Saver()
-  # if FLAGS.load == False:
-  #   # Save the variables to disk.
-  #   save_path = saver.save(sess, "/tmp/test_model.ckpt")
-  #   print("Model saved in file: %s" % save_path)
-  # else:
-  #   saver.restore(sess, "/tmp/test_model.ckpt")
-  #   print("Model restored.")
+  # # Save the variables to disk.
+  # save_path = saver.save(sess, "logs/model_parameters.ckpt")
+  # print("Model saved in file: %s" % save_path)
+
   train_writer.close()
 
 
@@ -304,7 +360,7 @@ if __name__ == '__main__':
   parser.add_argument('--fake_data', nargs='?', const=True, type=bool,
                       default=False,
                       help='If true, uses fake data for unit testing.')
-  parser.add_argument('--max_steps', type=int, default=10000,
+  parser.add_argument('--max_steps', type=int, default=1000,
                       help='Number of steps to run trainer.')
   parser.add_argument('--learning_rate', type=float, default=0.001,
                       help='Initial learning rate')

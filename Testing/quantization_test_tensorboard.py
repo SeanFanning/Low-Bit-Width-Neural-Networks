@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 FLAGS = None
 
-quantization_bits = 3
+quantization_bits = 2
 
 quantization_range = 1
 
@@ -70,15 +70,18 @@ def run():
       min_val_index = tf.argmin(input_tensor, output_type=tf.int32)
       min_val = sess.run(input_tensor[min_val_index])
 
+      max_val = .3
+      min_val = -.3
+
       # Quantization
       quantized_tensor = tf.fake_quant_with_min_max_args(input_tensor, min_val, max_val, quantization_bits, False, 'quantized_tensor')
       variable_summaries(quantized_tensor)
     return quantized_tensor
 
-  input_array = create_linear_vector_tensor(-.25, .25, 0.001)
+  input_array = create_linear_vector_tensor(-.3, .3, 0.001)
   quantized = quantize_test(input_array)
 
-  input_array2 = create_linear_vector_tensor(-0.3, 0.2, 0.001)
+  input_array2 = create_linear_vector_tensor(-0.35, 0.2, 0.001)
   quantized2 = quantize_test(input_array2)
 
   weights = create_random_weights_vector(50, 0.01)
