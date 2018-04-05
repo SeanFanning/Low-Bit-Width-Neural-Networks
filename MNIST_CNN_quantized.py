@@ -266,71 +266,71 @@ def train():
   # Hard code quantization to 2,2,4 for now
   l1_b_base = -0.4
   l1_b_steps = 2**fc1_b_bits
-  l1_b_step_size = (0.2-l1_b_base)/l1_b_steps
+  l1_b_step_size = 0.2  # (0.2-l1_b_base)/l1_b_steps (No idea what I was doing here) hard code it for now
   l1_w_base = -0.4
   l1_w_steps = 2 ** fc1_w_bits
-  l1_w_step_size = (0.2 - l1_w_base) / l1_w_steps
+  l1_w_step_size = 0.2  # (0.2 - l1_w_base) / l1_w_steps
 
   l2_b_base = -0.4
   l2_b_steps = 2 ** fc2_b_bits
-  l2_b_step_size = (0.2 - l2_b_base) / l2_b_steps
+  l2_b_step_size = 0.2  # (0.2 - l2_b_base) / l2_b_steps
   l2_w_base = -0.4
   l2_w_steps = 2 ** fc2_w_bits
-  l2_w_step_size = (0.2 - l2_w_base) / l2_w_steps
+  l2_w_step_size = 0.2  # (0.2 - l2_w_base) / l2_w_steps
+
+  def get_biases(biases):
+    quantized_values = biases
+    i=0
+    for x in biases: # For each bias value
+      for step in range(0, l2_b_steps): # For each step in range
+        step_val = round(l2_b_base + step * l2_b_step_size, 4)  # Value of current step
+        if (x > (step_val - l2_b_step_size / 2) and x < (step_val + l2_b_step_size / 2)): # If bias value is within the range of this step
+          #print(x, " -> ", step_val)
+          quantized_values[i] = step_val
+      i += 1
+    return quantized_values
+
+  def get_weights(weights):
+    quantized_values = weights
+    j = 0
+    for y in weights: # For each weight array
+      i = 0
+      for x in y: # For each weight value in array
+        for step in range(0, l2_w_steps): # For each step in range
+          step_val = round(l2_w_base + step * l2_w_step_size, 4)  # Value of current step
+          if (x > (step_val - l2_w_step_size / 2) and x < (step_val + l2_w_step_size / 2)): # If bias value is within the range of this step
+            # print(x, " -> ", step_val)
+            quantized_values[j][i] = step_val
+        i += 1
+      j += 1
+    return quantized_values
 
   for var in tf.global_variables():
     # print(var)
     if num_layers == 1:
       if '/weights/Variable:0' in var.name:
         print(var)
-        values = sess.run(var)
-        quantized_values = [len(values)][len(values[0])]
-        i=0
-        k=0
-        for y in values:
-          for x in y:
-            for j in range(1,l2_w_steps):
-              step = j*l2_w_step_size
-              if(x > (step - l2_w_step_size/2) and x < (step + l2_w_step_size/2)):
-                quantized_values[k][i] = j
-            i += 1
-          k += 1
-        np.savetxt("weights.csv", quantized_values, delimiter=",")
+        v = get_weights(sess.run(var))
+        np.savetxt("weights.csv", v, delimiter=",")
       elif '/biases/Variable:0' in var.name:
         print(var)
-        values = sess.run(var)
-        quantized_values = [len(values)]
-        i = 0
-        for x in values:
-          for j in range(1, l2_b_steps):
-            step = j * l2_b_step_size
-            if (x > (step - l2_b_step_size/2) and x < (step + l2_b_step_size/2)):
-              quantized_values[i] = j
-          i += 1
-        np.savetxt("biases.csv", quantized_values, delimiter=",")
+        v = get_biases(sess.run(var))
+        np.savetxt("biases.csv", v, delimiter=",")
     else:
       if 'fully_connected1/weights/Variable:0' in var.name:
         print(var)
-        #np.savetxt("l1_weights.csv", sess.run(var), delimiter=",")
       elif 'fully_connected1/biases/Variable:0' in var.name:
         print(var)
-        #np.savetxt("l1_biases.csv", sess.run(var), delimiter=",")
       elif 'fully_connected2/weights/Variable:0' in var.name:
         print(var)
-        #np.savetxt("l2_weights.csv", sess.run(var), delimiter=",")
       elif 'fully_connected2/biases/Variable:0' in var.name:
         print(var)
-        #np.savetxt("l2_biases.csv", sess.run(var), delimiter=",")
       elif 'fully_connected3/weights/Variable:0' in var.name:
         print(var)
-        #np.savetxt("l3_weights.csv", sess.run(var), delimiter=",")
       elif 'fully_connected3/biases/Variable:0' in var.name:
         print(var)
-        #np.savetxt("l3_biases.csv", sess.run(var), delimiter=",")
 
-  #f = open("tmp.txt", 'w')
-  #f.write(sess.run(y))
-  #sess.run(tf.Print(tf.get_collection(tf.GraphKeys.VARIABLES)))
+
 
   # saver = tf.train.Saver()
   # # Save the variables to disk.
