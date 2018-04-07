@@ -271,11 +271,11 @@ def train():
       if '/weights/Variable:0' in var.name:
         print(var)
         v = get_weights(sess.run(var))
-        np.savetxt("weights.csv", v, delimiter=",")
+        np.savetxt("weights.csv", v, delimiter=",", fmt='%f')
       elif '/biases/Variable:0' in var.name:
         print(var)
         v = get_biases(sess.run(var))
-        np.savetxt("biases.csv", v, delimiter=",")
+        np.savetxt("biases.csv", v, delimiter=",", fmt='%f')
     else:
       if 'fully_connected1/weights/Variable:0' in var.name:
         print(var)
