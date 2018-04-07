@@ -23,7 +23,7 @@ def get_biases(biases):
     for step in range(0, l2_b_steps):  # For each step in range
       step_val = round(l2_b_base + step * l2_b_step_size, 4)  # Value of current step
       if (x > (step_val - l2_b_step_size / 2) and x < (step_val + l2_b_step_size / 2)):  # If bias value is within the range of this step
-        print(x, " -> ", step_val)
+        # print(x, " -> ", step_val)
         quantized_values[i] = step_val
     i += 1
   return quantized_values
