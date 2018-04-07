@@ -16,6 +16,8 @@ l2_w_step_size = 0.2  # (0.2 - l2_w_base) / l2_w_steps
 
 
 
+# Returns the quantized versions of the values
+
 def get_biases(biases):
   quantized_values = biases
   i = 0
