@@ -273,7 +273,6 @@ def train():
   np.savetxt("input_reshaped_quantized.csv", x_flat[0], delimiter=",", fmt='%f')
   np.savetxt("output.csv", y_out[0], delimiter=",", fmt='%f')
 
-  #print(sess.run(x_quantized, feed_dict=feed_dict(True)))
 
   for var in tf.global_variables():
     #print("Var = ", var)
