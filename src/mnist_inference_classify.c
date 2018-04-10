@@ -208,10 +208,13 @@ float * calc_activations_optimised(int *input, float *biases, int **weights, int
     for(int i=0; i<length; i++){    // Per node
         float e = 0;
         for(int j=0; j<784; j++){   // Per input
-            e += input[j] * weights[j][i];
+            //e += input[j] * weights[j][i];
+            //printf("e = %f\n", e);
+            // TODO: This
+            e += calc_multiplication(input[j], weights[j][i]);
         }
         e += biases[i];
-        e = quantize_value(e, -1.866667, 0.266667, 15);    // Hardcode quantization of activations to 4 bits
+        // e = quantize_value(e, -1.866667, 0.266667, 15);    // Hardcode quantization of activations to 4 bits
         // printf("e = %f\n", e);
         act[i] = e;
     }
@@ -245,7 +248,7 @@ int main() {
     // Get the quantization step of the input values
     int *q_i = malloc (sizeof (int) * 784);
     for(int i=0; i<784; i++){
-        q_i[i] = i; //get_quantize_step(input[i], 0, 0.066667, 16);
+        q_i[i] = get_quantize_step(input[i], 0, 0.066667, 16);
     }
 
     // Get the quantization step of the weights
@@ -255,6 +258,7 @@ int main() {
         for(int j=0; j<10; j++){
             int v = get_quantize_step(weights[i][j], -0.4, 0.2, 4);
             w_i[i][j] = v;
+            //printf("w = %d\n", v);
         }
     }
 
