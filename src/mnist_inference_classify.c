@@ -245,15 +245,16 @@ int main() {
     // Get the quantization step of the input values
     int *q_i = malloc (sizeof (int) * 784);
     for(int i=0; i<784; i++){
-        q_i[i] = get_quantize_step(input[i], 0, 0.066667, 16);
+        q_i[i] = i; //get_quantize_step(input[i], 0, 0.066667, 16);
     }
-    printf("Done");
 
     // Get the quantization step of the weights
-    int ** w_i = malloc (sizeof (int) * 784 * 10);
+    int ** w_i = (int **) malloc (sizeof (int) * 784 * 100);
     for(int i=0; i<784; i++){
+        w_i[i] = (int *) malloc(sizeof(int) * 10);
         for(int j=0; j<10; j++){
-            w_i[i][j] = get_quantize_step(weights[i][j], -0.4, 0.2, 4);
+            int v = get_quantize_step(weights[i][j], -0.4, 0.2, 4);
+            w_i[i][j] = v;
         }
     }
 
