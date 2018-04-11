@@ -13,6 +13,7 @@ import shutil
 import numpy as np
 
 import tensorflow as tf
+import keras.backend as K
 from tensorflow.examples.tutorials.mnist import input_data
 
 from src.custom_convolution_layers import conv_layer_quantized_add_noise, conv_layer_quantized, conv_layer
@@ -101,9 +102,11 @@ def train():
   # Input placeholders
   with tf.name_scope('input'):
     x = tf.placeholder(tf.float32, [None, 784], name='x-input')
+    x_quantized = fake_quantize_tensor(x, input_quantization, 0, 1, name="quantized_input")
     y_ = tf.placeholder(tf.int64, [None], name='y-input')
 
   with tf.name_scope('input_reshape'):
+    image_shaped_input = tf.Variable([-1, 28, 28, 1], collections=[tf.GraphKeys.GLOBAL_VARIABLES])
     image_shaped_input = tf.reshape(x, [-1, 28, 28, 1])
     tf.summary.image('input', image_shaped_input, 10)
 
@@ -218,10 +221,10 @@ def train():
   # Every 10th step, measure test-set accuracy, and write test summaries
   # All other steps, run train_step on training data, & add training summaries
 
-  def feed_dict(train):
+  def feed_dict(train, batch_size=128):
     """Make a TensorFlow feed_dict: maps data onto Tensor placeholders."""
     if train or FLAGS.fake_data:
-      xs, ys = mnist.train.next_batch(128, fake_data=FLAGS.fake_data)
+      xs, ys = mnist.train.next_batch(batch_size, fake_data=FLAGS.fake_data)
       k = FLAGS.dropout
     else:
       xs, ys = mnist.test.images, mnist.test.labels
@@ -265,17 +268,27 @@ def train():
   print('Final accuracy: ', avg_accuracy/5)
 
 
+  x_in, x_flat, y_out = sess.run([x, x_flattened, y], feed_dict=feed_dict(True, batch_size=1))
+  np.savetxt("input.csv", x_in[0], delimiter=",", fmt='%f')
+  np.savetxt("input_reshaped_quantized.csv", x_flat[0], delimiter=",", fmt='%f')
+  np.savetxt("output.csv", y_out[0], delimiter=",", fmt='%f')
+
+
   for var in tf.global_variables():
-    # print(var)
+    #print("Var = ", var)
+    # if 'input_reshape/Variable:0' in var.name:
+    #   print(var)
+    #   v = sess.run(var)
+    #   np.savetxt("input_reshaped.csv", v, delimiter=",", fmt='%f')
     if num_layers == 1:
       if '/weights/Variable:0' in var.name:
         print(var)
         v = get_weights(sess.run(var))
-        np.savetxt("weights.csv", v, delimiter=",")
+        np.savetxt("weights.csv", v, delimiter=",", fmt='%f')
       elif '/biases/Variable:0' in var.name:
         print(var)
         v = get_biases(sess.run(var))
-        np.savetxt("biases.csv", v, delimiter=",")
+        np.savetxt("biases.csv", v, delimiter=",", fmt='%f')
     else:
       if 'fully_connected1/weights/Variable:0' in var.name:
         print(var)
