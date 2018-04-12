@@ -115,82 +115,6 @@ float * calc_activations(float *input, float *biases, float **weights, int lengt
     return(act);
 }
 
-// Uses a lookup table to find the result of the multiplication
-float multiplication_lut(int q_i, float Q, float **results){
-    int x = 0;
-
-    // TODO: Convert this into a binary search
-    // Maybe hardcode each value have an array 4x16
-    switch(q_i){
-        case 0:     // li 0
-            return(0);
-        case 1:     // move
-            return(Q);
-        case 2:     // sll 1
-            x = Q << 1;
-            return(x);
-        case 3:     // sll 1; add
-            x = Q << 1;
-            x += Q;
-            return(x);
-        case 4:     // sll 2
-            x = Q << 2;
-            return(x);
-        case 5:     // sll 2; add
-            x =
-            Q << 2;
-            x += Q;
-            return(x);
-        case 6:     // sll 1; add; sll 1
-            x = Q << 1;
-            x += Q;
-            x = x << 1;
-            return(x);
-        case 7:     // sll 3; sub
-            x = Q << 3;
-            x -= Q;
-            return(x);
-        case 8:     // sll 3
-            x = Q << 3;
-            return(x);
-        case 9:     // sll 3; add
-            x = Q << 3;
-            x += Q;
-            return(x);
-        case 10:    // sll 2; add; sll 1
-            x = Q << 2;
-            x += Q;
-            x = x << 1;
-            return(x);
-        case 11:    // sll 3; add; add; add
-            x = Q << 3;
-            x += Q;
-            x += Q;
-            x += Q;
-            return(x);
-        case 12:    // sll 1; add; sll 2  (* 3 * 4)
-            x = Q << 1;
-            x += Q;
-            x = x << 2;
-            return(x);
-        case 13:    // sll 4; sub; sub; sub
-            x = Q << 4;
-            x -= Q;
-            x -= Q;
-            x -= Q;
-            return(x);
-        case 14:    // sll 4; sub; sub
-            x = Q << 4;
-            x -= Q;
-            x -= Q;
-            return(x);
-        case 15:    // sll 4; sub
-            x = Q << 4;
-            x -= Q;
-            return(x);
-    }
-}
-
 float calc_multiplication(int q_i, int Q){
     int x = 0;
 
@@ -266,6 +190,19 @@ float calc_multiplication(int q_i, int Q){
     }
 }
 
+float ** calc_Q(float q_s, float **weights, int length){
+    float ** Q = (float **) malloc (sizeof (float) * 784 * length);
+
+    for(int i=0; i<784; i++){
+        Q[i] = (float *) malloc(sizeof(float) * length);
+        for(int j=0; j<length; j++){
+            Q[i][j] = q_s * weights[i][j];
+        }
+    }
+
+    return(Q);
+}
+
 // Using Q function to efficiently calculate activations
 float * calc_activations_optimised(int *input, float *biases, int **weights, int length){
 
@@ -310,6 +247,11 @@ float * calc_activations_optimised(int *input, float *biases, int **weights, int
     return(act);
 }
 
+//float convert_to_fixed_point()
+
+float * calc_activations_fixed_point(int * q_i, float ** Q){
+}
+
 int main() {
     int layer1_length = 10;
 
@@ -326,13 +268,7 @@ int main() {
 //        printf("\n");
 //    }
 
-    //float * activations = malloc (sizeof (float) * 10);
     float * activations = calc_activations(input, biases, weights, layer1_length);
-
-//    printf("Normal Activation:\n");
-//    for(int i=0; i<10; i++){
-//        printf("%f\n", activations[i]);
-//    }
 
     // Get the quantization step of the input values
     int *q_i = malloc (sizeof (int) * 784);
@@ -340,23 +276,14 @@ int main() {
         q_i[i] = get_quantize_step(input[i], 0, 0.066667, 16);
     }
 
-    // Get the quantization step of the weights
-    int ** w_i = (int **) malloc (sizeof (int) * 784 * 10);
-    for(int i=0; i<784; i++){
-        w_i[i] = (int *) malloc(sizeof(int) * 10);
-        for(int j=0; j<10; j++){
-            int v = get_quantize_step(weights[i][j], -0.4, 0.2, 4);
-            w_i[i][j] = v;
-            //printf("w = %d\n", v);
-        }
-    }
+    float ** Q = calc_Q(0.066667, weights, 10);
 
-    float * q_activations = calc_activations_optimised(q_i, biases, w_i, layer1_length);
+    //float * q_activations = calc_activations_optimised(q_i, biases, w_i, layer1_length);
 
-    printf("Normal Activation:\tQ Activation: \n");
-    for(int i=0; i<10; i++){
-        printf("%f\t\t%f\n", activations[i], q_activations[i]);
-    }
+//    printf("Normal Activation:\tQ Activation: \n");
+//    for(int i=0; i<10; i++){
+//        printf("%f\t\t%f\n", activations[i], q_activations[i]);
+//    }
 
 
     return 0 ;
