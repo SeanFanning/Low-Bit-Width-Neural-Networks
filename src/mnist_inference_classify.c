@@ -279,7 +279,29 @@ float * calc_activations_optimised(int *input, float *biases, int **weights, int
 
 //float convert_to_fixed_point()
 
-float * calc_activations_fixed_point(int * q_i, float ** Q){
+float * calc_activations_fixed_point(int * q_i, int ** Q, float * biases, int length){
+    float *act = malloc (sizeof (float) * length);
+
+    // y = x1w1 + x2w2 + x3w3 + b
+    // y = qi[step_size * w] + b
+    for(int i=0; i<length; i++){    // Per node
+        int e = 0;
+        for(int j=0; j<784; j++){   // Per input
+            //e += input[j] * weights[j][i];
+            //printf("e = %f\n", e);
+            // TODO: This
+            e += calc_multiplication(q_i[j], Q[j][i]);
+            //e += q_i[j] * Q[j][i];
+        }
+
+        float activation = e;
+        activation /= 64;
+        activation += biases[i];
+        // e = quantize_value(e, -1.866667, 0.266667, 15);    // Hardcode quantization of activations to 4 bits
+        // printf("e = %f\n", e);
+        act[i] = activation;
+    }
+    return(act);
 }
 
 int main() {
@@ -315,12 +337,12 @@ int main() {
 //    int c = a.value + b.value;
 //    printf("a=%d b=%d\tc = %d\n", a.value, b.value, c);
 
-    //float * q_activations = calc_activations_optimised(q_i, biases, w_i, layer1_length);
+    float * q_activations = calc_activations_fixed_point(q_i, Q, biases, layer1_length);
 
-//    printf("Normal Activation:\tQ Activation: \n");
-//    for(int i=0; i<10; i++){
-//        printf("%f\t\t%f\n", activations[i], q_activations[i]);
-//    }
+    printf("Normal Activation:\tQ Activation: \n");
+    for(int i=0; i<10; i++){
+        printf("%f\t\t%f\n", activations[i], q_activations[i]);
+    }
 
 
     return 0 ;
