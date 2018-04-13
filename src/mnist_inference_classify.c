@@ -213,7 +213,7 @@ int ** calc_Q(float q_s, float **weights, int length){
             float x = q_s * weights[i][j];
             fixedPoint v;
             v.value = fixed_point_quantize(x);
-            //printf("w = %f\tx = %f\tstep = %d\n", weights[i][j], x, v.value);
+            printf("w = %f\tx = %f\tFixed Point Quantized = %d\n", weights[i][j], x, v.value);
             Q[i][j] = v.value;
         }
     }
