@@ -3,6 +3,10 @@
 #include <string.h>
 #include <math.h>
 
+// Struct to store 4 bit quantized value
+typedef struct fixedPoint{ // C will automatically pad this to 8 bits though
+    int value : 4; // 4 bits signed value
+} fixedPoint;
 
 float ** get_weights(char *filename, int size_x, int size_y){
     char buffer[1024];
@@ -85,15 +89,6 @@ int get_quantize_step(float x, float base, float step_size, int steps){
         }
     }
     printf("Oh no x = %f\n", x);
-}
-
-float * get_ReLU(float *input, int length){
-    for(int i=0; i<length; i++){
-        if(input[i] < 0){
-            input[i] = 0;
-        }
-    }
-    return(input);
 }
 
 // Using Identity
@@ -190,13 +185,48 @@ float calc_multiplication(int q_i, int Q){
     }
 }
 
-float ** calc_Q(float q_s, float **weights, int length){
+// Returns the signed fixed point value using 2s compliment
+// Hardcoded for 4 bit Q to 2^-6
+int fixed_point_quantize(float x){
+
+    if(x < -0.026){
+        return(0b1110);
+    }
+    else if(x < -0.01){
+        return(-1);
+    }
+    else if(x > 0.01){
+        return(0b0001);
+    }
+    else{
+        return(0b0000);
+    }
+}
+
+int ** calc_Q(float q_s, float **weights, int length){
     float ** Q = (float **) malloc (sizeof (float) * 784 * length);
 
     for(int i=0; i<784; i++){
         Q[i] = (float *) malloc(sizeof(float) * length);
+        float y=0;
         for(int j=0; j<length; j++){
-            Q[i][j] = q_s * weights[i][j];
+            float x = q_s * weights[i][j];
+            fixedPoint v;
+//            if(x < -0.026){
+//                v.value = 0b1110;
+//            }
+//            else if(x < -0.01){
+//                v.value = 0b1111;
+//            }
+//            else if(x > 0.01){
+//                v.value = 0b0001;
+//            }
+//            else{
+//                v.value = 0b0000;
+//            }
+            v.value = fixed_point_quantize(x);
+            //printf("w = %f\tx = %f\tstep = %d\n", weights[i][j], x, v.value);
+            Q[i][j] = v.value;
         }
     }
 
@@ -276,7 +306,14 @@ int main() {
         q_i[i] = get_quantize_step(input[i], 0, 0.066667, 16);
     }
 
-    float ** Q = calc_Q(0.066667, weights, 10);
+    int ** Q = calc_Q(0.066667, weights, 10);
+
+//    fixedPoint a, b;
+//    a.value = 0b0001;
+//    b.value = -1;//0b1111;
+//
+//    int c = a.value + b.value;
+//    printf("a=%d b=%d\tc = %d\n", a.value, b.value, c);
 
     //float * q_activations = calc_activations_optimised(q_i, biases, w_i, layer1_length);
 
