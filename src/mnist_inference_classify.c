@@ -103,7 +103,7 @@ float * calc_activations(float *input, float *biases, float **weights, int lengt
             e += input[j] * weights[j][i];
         }
         e += biases[i];
-        e = quantize_value(e, -1.866667, 0.266667, 15);    // Hardcode quantization of activations to 4 bits
+        //e = quantize_value(e, -1.866667, 0.266667, 15);    // Hardcode quantization of activations to 4 bits
         // printf("e = %f\n", e);
         act[i] = e;
     }
@@ -212,18 +212,6 @@ int ** calc_Q(float q_s, float **weights, int length){
         for(int j=0; j<length; j++){
             float x = q_s * weights[i][j];
             fixedPoint v;
-//            if(x < -0.026){
-//                v.value = 0b1110;
-//            }
-//            else if(x < -0.01){
-//                v.value = 0b1111;
-//            }
-//            else if(x > 0.01){
-//                v.value = 0b0001;
-//            }
-//            else{
-//                v.value = 0b0000;
-//            }
             v.value = fixed_point_quantize(x);
             //printf("w = %f\tx = %f\tstep = %d\n", weights[i][j], x, v.value);
             Q[i][j] = v.value;
@@ -232,52 +220,6 @@ int ** calc_Q(float q_s, float **weights, int length){
 
     return(Q);
 }
-
-// Using Q function to efficiently calculate activations
-float * calc_activations_optimised(int *input, float *biases, int **weights, int length){
-
-    float *act = malloc (sizeof (float) * length); // Activations should be the same size as the biases
-    float step_size = 0.066667; // q_s
-    float w[4] = {-0.4, -0.2, 0, 0.2};
-    float *Q = malloc (sizeof (float) * 4);
-
-    // Calculate the possible values of Q
-    for(int i=0; i<4; i++){
-        Q[i] = step_size * w[i];
-    }
-
-    // Array to store multiplication results
-    float ** results = (float **) malloc (sizeof (float) * 16 * 4);
-
-    // Calculate the possible multiplication results
-    for(int q_i=0; q_i<16; q_i++){  // For each q_i possibility
-        results[q_i] = (float *) malloc(sizeof(float) * 4);
-        for(int j=0; j<4; j++){ // For each possible value of Q
-            results[q_i][j] = Q[j] * q_i;
-        }
-    }
-
-    // y = x1w1 + x2w2 + x3w3 + b
-    // y = qi[step_size * w] + b
-    for(int i=0; i<length; i++){    // Per node
-        float e = 0;
-        for(int j=0; j<784; j++){   // Per input
-            //e += input[j] * weights[j][i];
-            //printf("e = %f\n", e);
-            // TODO: This
-            e += calc_multiplication(input[j], weights[j][i]);
-            //e += multiplication_lut(input[j], weights[j][i]);
-        }
-
-        e += biases[i];
-        // e = quantize_value(e, -1.866667, 0.266667, 15);    // Hardcode quantization of activations to 4 bits
-        // printf("e = %f\n", e);
-        act[i] = e;
-    }
-    return(act);
-}
-
-//float convert_to_fixed_point()
 
 float * calc_activations_fixed_point(int * q_i, int ** Q, float * biases, int length){
     float *act = malloc (sizeof (float) * length);
@@ -308,20 +250,13 @@ int main() {
     int layer1_length = 10;
 
     float * input = get_biases("../input_reshaped_quantized.csv", 784);
-
     float * biases = get_biases("../biases.csv", 10);
-
     float ** weights = get_weights("../weights.csv", 784, 10);
 
-//    for(int i=0; i<784; i++){
-//        for(int j=0; j<10; j++){
-//            //printf("%f ", weights[i][j]);
-//        }
-//        printf("\n");
-//    }
-
+    // First calculate the activations the normal way
     float * activations = calc_activations(input, biases, weights, layer1_length);
 
+    // Then do the multiplication free fixed point method
     // Get the quantization step of the input values
     int *q_i = malloc (sizeof (int) * 784);
     for(int i=0; i<784; i++){
@@ -330,18 +265,11 @@ int main() {
 
     int ** Q = calc_Q(0.066667, weights, 10);
 
-//    fixedPoint a, b;
-//    a.value = 0b0001;
-//    b.value = -1;//0b1111;
-//
-//    int c = a.value + b.value;
-//    printf("a=%d b=%d\tc = %d\n", a.value, b.value, c);
-
     float * q_activations = calc_activations_fixed_point(q_i, Q, biases, layer1_length);
 
-    printf("Normal Activation:\tQ Activation: \n");
+    printf("Normal Activation:\t\tFixed Point Multiplication Free Activation: \n");
     for(int i=0; i<10; i++){
-        printf("%f\t\t%f\n", activations[i], q_activations[i]);
+        printf("%f\t\t\t%f\n", activations[i], q_activations[i]);
     }
 
 
