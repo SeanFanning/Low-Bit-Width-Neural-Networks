@@ -204,10 +204,10 @@ int fixed_point_quantize(float x){
 }
 
 int ** calc_Q(float q_s, float **weights, int length){
-    float ** Q = (float **) malloc (sizeof (float) * 784 * length);
+    int ** Q = (int **) malloc (sizeof (int) * 784 * length);
 
     for(int i=0; i<784; i++){
-        Q[i] = (float *) malloc(sizeof(float) * length);
+        Q[i] = (int *) malloc(sizeof(int) * length);
         float y=0;
         for(int j=0; j<length; j++){
             float x = q_s * weights[i][j];
