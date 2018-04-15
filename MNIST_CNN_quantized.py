@@ -19,7 +19,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 from src.custom_convolution_layers import conv_layer_quantized_add_noise, conv_layer_quantized, conv_layer
 from src.custom_fully_connected_layers import fc_layer_quantized_add_noise, fc_layer_quantized, fc_layer
 from src.quantize_tensor import fake_quantize_tensor
-from src.output_vars import get_weights, get_biases, calculate_Q, fixed_point_quantize
+from src.output_vars import get_weights, get_biases, calculate_Q
 
 FLAGS = None
 
@@ -321,7 +321,7 @@ if __name__ == '__main__':
   parser.add_argument('--fake_data', nargs='?', const=True, type=bool,
                       default=False,
                       help='If true, uses fake data for unit testing.')
-  parser.add_argument('--max_steps', type=int, default=1000,
+  parser.add_argument('--max_steps', type=int, default=10000,
                       help='Number of steps to run trainer.')
   parser.add_argument('--learning_rate', type=float, default=0.001,
                       help='Initial learning rate')
