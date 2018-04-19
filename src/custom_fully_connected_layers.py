@@ -39,8 +39,8 @@ def fc_layer_quantized(input_tensor, input_dim, output_dim, bits_w, max_w, bits_
       weights = weight_variable([input_dim, output_dim])
       variable_summaries(weights)
     with tf.name_scope('biases'):
-      # biases = bias_variable([output_dim])
-      biases = weight_variable([output_dim]) # Biases work better when initialised randomly
+      biases = bias_variable([output_dim])
+      # biases = weight_variable([output_dim]) # Biases work better when initialised randomly
       variable_summaries(biases)
 
     with tf.name_scope('quantized_weights'):

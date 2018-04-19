@@ -19,13 +19,13 @@ from tensorflow.examples.tutorials.mnist import input_data
 from src.custom_convolution_layers import conv_layer_quantized_add_noise, conv_layer_quantized, conv_layer
 from src.custom_fully_connected_layers import fc_layer_quantized_add_noise, fc_layer_quantized, fc_layer
 from src.quantize_tensor import fake_quantize_tensor
-from src.output_vars import get_weights, get_biases
+from src.output_vars import get_weights, get_biases, calculate_Q
 
 FLAGS = None
 
 record_summaries = False # Disable recording summaries to improve performance
 num_layers = 1  # Set the number of Fully Connected Layers
-quantization_enabled = True
+quantization_enabled = False
 conv_enabled = False
 
 noise_stddev = 0.05
@@ -275,21 +275,18 @@ def train():
 
 
   for var in tf.global_variables():
-    #print("Var = ", var)
-    # if 'input_reshape/Variable:0' in var.name:
-    #   print(var)
-    #   v = sess.run(var)
-    #   np.savetxt("input_reshaped.csv", v, delimiter=",", fmt='%f')
     if num_layers == 1:
       if '/weights/Variable:0' in var.name:
         print(var)
-        v = get_weights(sess.run(var))
-        np.savetxt("weights.csv", v, delimiter=",", fmt='%f')
+        v = sess.run(var) #get_weights(sess.run(var))
+        np.savetxt("Parameters/weights.csv", v, delimiter=",", fmt='%f')
+        np.savetxt("Parameters/Q.csv", calculate_Q(0.066667, v).astype(int), delimiter=",", fmt='%i')
       elif '/biases/Variable:0' in var.name:
         print(var)
-        v = get_biases(sess.run(var))
-        np.savetxt("biases.csv", v, delimiter=",", fmt='%f')
+        v = sess.run(var) # get_biases(sess.run(var))
+        np.savetxt("Parameters/biases.csv", v, delimiter=",", fmt='%f') # Store the fixed point biases
     else:
+      print("Fixed point inference not implemented yet for networks with more than one layer")
       if 'fully_connected1/weights/Variable:0' in var.name:
         print(var)
       elif 'fully_connected1/biases/Variable:0' in var.name:
@@ -304,16 +301,7 @@ def train():
         print(var)
 
 
-
-  # saver = tf.train.Saver()
-  # # Save the variables to disk.
-  # save_path = saver.save(sess, "logs/model_parameters.ckpt")
-  # print("Model saved in file: %s" % save_path)
-
   train_writer.close()
-
-
-
 
 
 
@@ -333,7 +321,7 @@ if __name__ == '__main__':
   parser.add_argument('--fake_data', nargs='?', const=True, type=bool,
                       default=False,
                       help='If true, uses fake data for unit testing.')
-  parser.add_argument('--max_steps', type=int, default=1000,
+  parser.add_argument('--max_steps', type=int, default=10000,
                       help='Number of steps to run trainer.')
   parser.add_argument('--learning_rate', type=float, default=0.001,
                       help='Initial learning rate')
