@@ -25,7 +25,7 @@ FLAGS = None
 
 record_summaries = False # Disable recording summaries to improve performance
 num_layers = 1  # Set the number of Fully Connected Layers
-quantization_enabled = False
+quantization_enabled = True
 conv_enabled = False
 
 noise_stddev = 0.05
@@ -35,60 +35,60 @@ noise_enabled_conv = False
 input_quantization = 4
 
 # Conv 1
-conv1_w_bits = 2
+conv1_w_bits = 4
 conv1_w_min = -0.3
 conv1_w_max = 0.3
-conv1_b_bits = 2
+conv1_b_bits = 4
 conv1_b_min = -0.3
 conv1_b_max = 0.3
-conv1_a_bits = 4
+conv1_a_bits = 2
 conv1_a_min = -1
 conv1_a_max = 1
 
 # Conv 2
-conv2_w_bits = 2
+conv2_w_bits = 4
 conv2_w_min = -0.3
 conv2_w_max = 0.3
-conv2_b_bits = 2
+conv2_b_bits = 4
 conv2_b_min = -0.3
 conv2_b_max = 0.3
-conv2_a_bits = 4
+conv2_a_bits = 2
 conv2_a_min = -1
 conv2_a_max = 1
 
 # Fully Connected 1
-fc1_depth = 500
-fc1_w_bits = 2
+fc1_depth = 250
+fc1_w_bits = 4
 fc1_w_min = -0.3
 fc1_w_max = 0.3
-fc1_b_bits = 2
+fc1_b_bits = 4
 fc1_b_min = -0.3
 fc1_b_max = 0.3
-fc1_a_bits = 4
+fc1_a_bits = 2
 fc1_a_min = -2
 fc1_a_max = 2
 
 # Fully Connected 2 (OUTPUT)
 fc2_depth = 10
-fc2_w_bits = 2
+fc2_w_bits = 4
 fc2_w_min = -0.3
 fc2_w_max = 0.3
-fc2_b_bits = 2
+fc2_b_bits = 4
 fc2_b_min = -0.3
 fc2_b_max = 0.3
-fc2_a_bits = 4
+fc2_a_bits = 2
 fc2_a_min = -2
 fc2_a_max = 2
 
 # Fully Connected 3 (MIDDLE)
 fc3_depth = 250
-fc3_w_bits = 2
+fc3_w_bits = 4
 fc3_w_min = -0.3
 fc3_w_max = 0.3
-fc3_b_bits = 2
+fc3_b_bits = 4
 fc3_b_min = -0.3
 fc3_b_max = 0.3
-fc3_a_bits = 4
+fc3_a_bits = 2
 fc3_a_min = -2
 fc3_a_max = 2
 
@@ -221,7 +221,7 @@ def train():
   # Every 10th step, measure test-set accuracy, and write test summaries
   # All other steps, run train_step on training data, & add training summaries
 
-  def feed_dict(train, batch_size=128):
+  def feed_dict(train, batch_size=100): # 128
     """Make a TensorFlow feed_dict: maps data onto Tensor placeholders."""
     if train or FLAGS.fake_data:
       xs, ys = mnist.train.next_batch(batch_size, fake_data=FLAGS.fake_data)
@@ -284,7 +284,8 @@ def train():
       elif '/biases/Variable:0' in var.name:
         print(var)
         v = sess.run(var) # get_biases(sess.run(var))
-        np.savetxt("Parameters/biases.csv", v, delimiter=",", fmt='%f') # Store the fixed point biases
+        np.savetxt("Parameters/floating_biases.csv", v, delimiter=",", fmt='%f') # Store the floating point biases
+        np.savetxt("Parameters/biases.csv", get_biases(v), delimiter=",", fmt='%f') # Store the fixed point biases
     else:
       print("Fixed point inference not implemented yet for networks with more than one layer")
       if 'fully_connected1/weights/Variable:0' in var.name:
@@ -311,6 +312,7 @@ def main(_):
     tf.gfile.DeleteRecursively(FLAGS.log_dir)
     # shutil.rmtree(FLAGS.log_dir)
   tf.gfile.MakeDirs(FLAGS.log_dir)
+  tf.gfile.MakeDirs("Parameters")
 
 
   train()
@@ -321,7 +323,7 @@ if __name__ == '__main__':
   parser.add_argument('--fake_data', nargs='?', const=True, type=bool,
                       default=False,
                       help='If true, uses fake data for unit testing.')
-  parser.add_argument('--max_steps', type=int, default=10000,
+  parser.add_argument('--max_steps', type=int, default=600*5,
                       help='Number of steps to run trainer.')
   parser.add_argument('--learning_rate', type=float, default=0.001,
                       help='Initial learning rate')
