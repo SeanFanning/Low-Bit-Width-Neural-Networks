@@ -75,5 +75,10 @@ int main() {
         printf("%f\t\t\t%d\n", activations[i], q_activations[i]);
     }
 
+    int maxout_normal = get_maxout_float(activations);
+    int maxout_fixedpoint = get_maxout(q_activations);
+
+    printf("\n\nNormal Classification Result:\t\t\t\t%d\nFixed Point Multiplication Free Classification Result:\t%d\n", maxout_normal, maxout_fixedpoint);
+
     return 0;
 }

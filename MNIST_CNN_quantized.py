@@ -41,7 +41,7 @@ conv1_w_max = 0.3
 conv1_b_bits = 4
 conv1_b_min = -0.3
 conv1_b_max = 0.3
-conv1_a_bits = 2
+conv1_a_bits = 4
 conv1_a_min = -1
 conv1_a_max = 1
 
@@ -52,7 +52,7 @@ conv2_w_max = 0.3
 conv2_b_bits = 4
 conv2_b_min = -0.3
 conv2_b_max = 0.3
-conv2_a_bits = 2
+conv2_a_bits = 4
 conv2_a_min = -1
 conv2_a_max = 1
 
@@ -64,7 +64,7 @@ fc1_w_max = 0.3
 fc1_b_bits = 4
 fc1_b_min = -0.3
 fc1_b_max = 0.3
-fc1_a_bits = 2
+fc1_a_bits = 4
 fc1_a_min = -2
 fc1_a_max = 2
 
@@ -76,7 +76,7 @@ fc2_w_max = 0.3
 fc2_b_bits = 4
 fc2_b_min = -0.3
 fc2_b_max = 0.3
-fc2_a_bits = 2
+fc2_a_bits = 4
 fc2_a_min = -2
 fc2_a_max = 2
 
@@ -88,7 +88,7 @@ fc3_w_max = 0.3
 fc3_b_bits = 4
 fc3_b_min = -0.3
 fc3_b_max = 0.3
-fc3_a_bits = 2
+fc3_a_bits = 4
 fc3_a_min = -2
 fc3_a_max = 2
 

@@ -107,6 +107,29 @@ int get_quantize_step(float x, float base, float step_size, int steps){
     }
 }
 
+int get_maxout(int * y){
+    int max_val=-10000;
+    int max;
+    for(int i=0; i<10; i++){
+        if(y[i] > max_val){
+            max_val = y[i];
+            max = i;
+        }
+    }
+    return(max);
+}
+int get_maxout_float(float * y){
+    float max_val=-10000;
+    int max;
+    for(int i=0; i<10; i++){
+        if(y[i] > max_val){
+            max_val = y[i];
+            max = i;
+        }
+    }
+    return(max);
+}
+
 float calc_multiplication(int q_i, int Q){
     int x = 0;
 
