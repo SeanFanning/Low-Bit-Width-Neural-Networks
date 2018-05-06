@@ -23,8 +23,8 @@ float * calc_activations(float *input, float *biases, float **weights, int lengt
     return(act);
 }
 
-float * calc_activations_fixed_point(int * q_i, int ** Q, float * biases, int length){
-    float *act = malloc (sizeof (float) * length);
+int * calc_activations_fixed_point(int * q_i, int ** Q, int * biases, int length){
+    int *act = malloc (sizeof (int) * length);
 
     // y = x1w1 + x2w2 + x3w3 + b
     // y = qi[step_size * w] + b
@@ -35,11 +35,16 @@ float * calc_activations_fixed_point(int * q_i, int ** Q, float * biases, int le
             e += calc_multiplication(q_i[j], Q[j][i]);
             //e += q_i[j] * Q[j][i];
         }
+
         //int a = e >> 7;
-        float activation = e;
-        activation /= 128; // Single floating point division per node (Compared to 784 mults per node)
-        activation += biases[i]; // Could reduce this by increasing bit size of activations
+        e += biases[i];
+        int activation = e >> 7;
+        printf("e= %d\ta= %d\tb= %d\n", e, activation, biases[i]);
+        //activation /= 128; // Shift right to dequantize
+        //activation += biases[i]; // Could reduce this by increasing bit size of activations
         act[i] = activation;
+
+        //act[i] = e + (biases[i]);
     }
     return(act);
 }
@@ -48,24 +53,32 @@ int main() {
     int layer1_length = 10;
 
     float * input = get_biases("../input_reshaped_quantized.csv", 784);
-    float * biases = get_biases("../Parameters/biases.csv", 10);
+    float * biases = get_biases("../Parameters/floating_biases.csv", 10);
+    int * biases_fixed = get_fixed_biases("../Parameters/biases.csv", 10);
     float ** weights = get_weights("../Parameters/weights.csv", 784, 10);
     int ** Q = get_Q("../Parameters/Q.csv", 784, 10);
 
     // First calculate the activations the normal way
     float * activations = calc_activations(input, biases, weights, layer1_length);
 
+    printf("Done Normal\n");
+
     // Get the quantization step of the input values
     int *q_i = malloc (sizeof (int) * 784);
     for(int i=0; i<784; i++){
         q_i[i] = get_quantize_step(input[i], 0, 0.066667, 16);
     }
-    float * q_activations = calc_activations_fixed_point(q_i, Q, biases, layer1_length);
+    int * q_activations = calc_activations_fixed_point(q_i, Q, biases_fixed, layer1_length);
 
     printf("Normal Activation:\t\tFixed Point Multiplication Free Activation: \n");
     for(int i=0; i<10; i++){
-        printf("%f\t\t\t%f\n", activations[i], q_activations[i]);
+        printf("%f\t\t\t%d\n", activations[i], q_activations[i]);
     }
+
+    int maxout_normal = get_maxout_float(activations);
+    int maxout_fixedpoint = get_maxout(q_activations);
+
+    printf("\n\nNormal Classification Result:\t\t\t\t%d\nFixed Point Multiplication Free Classification Result:\t%d\n", maxout_normal, maxout_fixedpoint);
 
     return 0;
 }

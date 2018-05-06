@@ -2,4 +2,4 @@
 Testing/logs/*
 logs/*
 *.pyc
-*.csv
+# *.csv

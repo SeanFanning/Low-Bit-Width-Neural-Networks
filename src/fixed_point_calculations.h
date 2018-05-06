@@ -73,6 +73,23 @@ float * get_biases(char *filename, int size){
     return(mat);
 }
 
+int * get_fixed_biases(char *filename, int size){
+    char buffer[1024];
+    char *record, *line;
+    int j=0;
+    int *mat = malloc (sizeof (int) * size);
+    FILE *fstream = fopen(filename, "r");
+
+    while((line=fgets(buffer,sizeof(buffer),fstream))!=NULL){
+        record = strtok(line, ",");
+        while(record != NULL) {
+            mat[j++] = atof(record);
+            record = strtok(NULL,";");
+        }
+    }
+    return(mat);
+}
+
 //  Returns the quantization step (q_i)
 int get_quantize_step(float x, float base, float step_size, int steps){
     if(x < base){   // Limit x to the min and max values
@@ -88,6 +105,29 @@ int get_quantize_step(float x, float base, float step_size, int steps){
             return(i);
         }
     }
+}
+
+int get_maxout(int * y){
+    int max_val=-10000;
+    int max;
+    for(int i=0; i<10; i++){
+        if(y[i] > max_val){
+            max_val = y[i];
+            max = i;
+        }
+    }
+    return(max);
+}
+int get_maxout_float(float * y){
+    float max_val=-10000;
+    int max;
+    for(int i=0; i<10; i++){
+        if(y[i] > max_val){
+            max_val = y[i];
+            max = i;
+        }
+    }
+    return(max);
 }
 
 float calc_multiplication(int q_i, int Q){
