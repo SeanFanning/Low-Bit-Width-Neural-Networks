@@ -323,7 +323,7 @@ if __name__ == '__main__':
   parser.add_argument('--fake_data', nargs='?', const=True, type=bool,
                       default=False,
                       help='If true, uses fake data for unit testing.')
-  parser.add_argument('--max_steps', type=int, default=600*5,
+  parser.add_argument('--max_steps', type=int, default=600*25,  # Train for 25 epochs
                       help='Number of steps to run trainer.')
   parser.add_argument('--learning_rate', type=float, default=0.001,
                       help='Initial learning rate')
